@@ -239,7 +239,7 @@ public class ArtifactInfoPanel extends AbstractComposite {
         HorizontalPanel buttons = new HorizontalPanel();
         buttons.setSpacing(10);
         buttons.setHorizontalAlignment(HasHorizontalAlignment.ALIGN_RIGHT);
-        
+
         final Button cancelButton = new Button("Cancel");
         cancelButton.addClickListener(new ClickListener() {
             public void onClick(Widget w) {
@@ -247,13 +247,12 @@ public class ArtifactInfoPanel extends AbstractComposite {
                 replyClickListener.setShowingComment(false);
             }
         });
-        buttons.add(cancelButton);
-        
-        final Button addButton = new Button("Add");
+
+        final Button addButton = new Button("Save");
         addButton.addClickListener(new ClickListener() {
             public void onClick(Widget w) {
-                addComment(commentPanel, 
-                           addCommentPanel, 
+                addComment(commentPanel,
+                           addCommentPanel,
                            text,
                            cancelButton,
                            addButton,
@@ -261,7 +260,9 @@ public class ArtifactInfoPanel extends AbstractComposite {
                            replyClickListener);
             }
         });
+
         buttons.add(addButton);
+        buttons.add(cancelButton);
         addCommentPanel.add(buttons);
         addCommentPanel.setCellHorizontalAlignment(buttons, HasHorizontalAlignment.ALIGN_RIGHT);
 
