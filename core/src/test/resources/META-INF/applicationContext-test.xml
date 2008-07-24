@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans
+    xmlns="http://www.springframework.org/schema/beans"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-2.5.xsd">
+
+  <bean id="repository" class="org.springmodules.jcr.jackrabbit.RepositoryFactoryBean">
+    <!-- normal factory beans params -->
+    <property name="configuration" value="classpath:/META-INF/jackrabbit-repo-test.xml"/>
+    <property name="homeDir" value="file:./target/galaxy-data"/>
+  </bean>
+  
+  <bean id="indexManagerTarget"  class="org.mule.galaxy.impl.index.IndexManagerImpl"
+        init-method="initialize" destroy-method="destroy">
+    <property name="activityManager" ref="activityManager" />
+    <property name="contentService" ref="contentService"/>
+    <property name="sessionFactory" ref="sessionFactory" />
+    <property name="persisterManager" ref="persisterManager" />
+    <property name="indexArtifactsAsynchronously" value="false"/>
+  </bean>
+  
+  <bean id="removeOddCharsFn" class="org.mule.galaxy.impl.query.RemoveArtifactsWithOddNumberOfCharsFunction"/>
+  
+</beans>

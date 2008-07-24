@@ -1,0 +1,76 @@
+package org.mule.galaxy.web.rpc;
+
+import org.mule.galaxy.web.client.RPCException;
+import org.mule.galaxy.web.client.admin.PasswordChangeException;
+
+import com.google.gwt.user.client.rpc.RemoteService;
+
+import java.util.Collection;
+import java.util.Map;
+
+
+public interface SecurityService extends RemoteService {
+    
+    int ARTIFACT_PERMISSIONS = 0;
+    int WORKSPACE_PERMISSIONS = 1;
+    int GLOBAL_PERMISSIONS = 2;
+    
+    WUser getUser(String id) throws RPCException;
+    
+    /**
+     * @gwt.typeArgs <org.mule.galaxy.web.rpc.WUser>
+     * @return
+     */
+    Collection getUsers();
+    
+    String addUser(WUser user, String password) throws ItemExistsException;
+    
+    void updateUser(WUser user, String password, String confirm) 
+        throws PasswordChangeException, ItemNotFoundException, RPCException;
+    
+    void deleteUser(String userId);
+    
+    /**
+     * @gwt.typeArgs <org.mule.galaxy.web.rpc.WPermission>
+     */
+    Collection getPermissions(int permissionType);
+    
+    /**
+     * @gwt.typeArgs <org.mule.galaxy.web.rpc.WGroup, java.util.Collection<org.mule.galaxy.web.rpc.WPermissionGrant>>
+     */
+    Map getGroupPermissions();
+
+    /**
+     * @throws RPCException 
+     * @gwt.typeArgs <org.mule.galaxy.web.rpc.WGroup, java.util.Collection<org.mule.galaxy.web.rpc.WPermissionGrant>>
+     */
+    Map getGroupPermissions(String itemId) throws RPCException;
+    
+    /**
+     * @throws RPCException 
+     * @throws ItemExistsException 
+     * @gwt.typeArgs group <java.lang.String>
+     */
+    void save(WGroup group) throws RPCException, ItemExistsException;
+    
+    WGroup getGroup(String id) throws RPCException;
+    
+    void deleteGroup(String id) throws RPCException;
+    
+    /**
+     * @gwt.typeArgs group2Permissions <org.mule.galaxy.web.rpc.WGroup, java.util.Collection<org.mule.galaxy.web.rpc.WPermissionGrant>>
+     */
+    void applyPermissions(Map group2Permissions) throws RPCException;
+
+    /**
+     * @throws RPCException 
+     * @gwt.typeArgs group2Permissions <org.mule.galaxy.web.rpc.WGroup, java.util.Collection<org.mule.galaxy.web.rpc.WPermissionGrant>>
+     */
+    void applyPermissions(String itemId, Map group2Permissions) throws RPCException;
+    
+    /**
+     * @throws RPCException 
+     * @gwt.typeArgs <org.mule.galaxy.web.rpc.WGroup>
+     */
+    Collection getGroups() throws RPCException;
+}
