@@ -11,7 +11,7 @@ package org.mule.galaxy.plugins;
 
 import org.mule.galaxy.Workspace;
 import org.mule.galaxy.policy.ApprovalMessage;
-import org.mule.galaxy.policy.ArtifactPolicy;
+import org.mule.galaxy.policy.Policy;
 import org.mule.galaxy.policy.PolicyException;
 import org.mule.galaxy.test.AbstractGalaxyTest;
 
@@ -26,7 +26,7 @@ public abstract class AbstractPolicyTest extends AbstractGalaxyTest
         assertEquals(1, workspaces.size());
         Workspace workspace = workspaces.iterator().next();
 
-        ArtifactPolicy p = policyManager.getPolicy(policyId);
+        Policy p = policyManager.getPolicy(policyId);
         assertNotNull(p);
 
         policyManager.setActivePolicies(lifecycleManager.getDefaultLifecycle(), p);

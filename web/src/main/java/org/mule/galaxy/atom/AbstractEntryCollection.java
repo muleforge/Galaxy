@@ -511,7 +511,7 @@ public abstract class AbstractEntryCollection
             throwMalformed("Lifecycle phase \"" + phaseName + "\" does not exist.");
         
         try {
-            lifecycleManager.transition(av, phase, getUser());
+            lifecycleManager.transition(av, null, phase, getUser());
         } catch (TransitionException e1) {
             throwMalformed(e1.getMessage());
         } catch (PolicyException e1) {

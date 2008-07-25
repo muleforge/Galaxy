@@ -1,17 +1,17 @@
 package org.mule.galaxy.policy;
 
 public class PolicyInfo {
-    private ArtifactPolicy artifactPolicy;
+    private Policy artifactPolicy;
     private Object appliesTo;
     
     
-    public PolicyInfo(ArtifactPolicy artifactPolicy, Object appliesTo) {
+    public PolicyInfo(Policy artifactPolicy, Object appliesTo) {
         super();
         this.artifactPolicy = artifactPolicy;
         this.appliesTo = appliesTo;
     }
     
-    public ArtifactPolicy getArtifactPolicy() {
+    public Policy getArtifactPolicy() {
         return artifactPolicy;
     }
     public Object getAppliesTo() {

@@ -5,7 +5,7 @@ import java.util.Collection;
 
 import org.mule.galaxy.Workspace;
 import org.mule.galaxy.policy.ApprovalMessage;
-import org.mule.galaxy.policy.ArtifactPolicy;
+import org.mule.galaxy.policy.Policy;
 import org.mule.galaxy.policy.PolicyException;
 import org.mule.galaxy.test.AbstractGalaxyTest;
 
@@ -23,7 +23,7 @@ public class BasicProfilePolicyTest extends AbstractGalaxyTest {
         assertEquals(1, workspaces.size());
         Workspace workspace = workspaces.iterator().next();
 
-        ArtifactPolicy p = policyManager.getPolicy(BasicProfilePolicy.WSI_BP_1_1_WSDL);
+        Policy p = policyManager.getPolicy(BasicProfilePolicy.WSI_BP_1_1_WSDL);
 
         policyManager.setActivePolicies(lifecycleManager.getDefaultLifecycle(), p);
 

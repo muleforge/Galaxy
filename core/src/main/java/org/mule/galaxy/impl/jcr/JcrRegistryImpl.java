@@ -1,52 +1,8 @@
 package org.mule.galaxy.impl.jcr;
 
 
-import org.mule.galaxy.Artifact;
-import org.mule.galaxy.ArtifactVersion;
-import org.mule.galaxy.ContentHandler;
-import org.mule.galaxy.ContentService;
-import org.mule.galaxy.Dao;
-import org.mule.galaxy.DuplicateItemException;
-import org.mule.galaxy.Entry;
-import org.mule.galaxy.EntryVersion;
-import org.mule.galaxy.Item;
-import org.mule.galaxy.Link;
-import org.mule.galaxy.LinkType;
-import org.mule.galaxy.NotFoundException;
-import org.mule.galaxy.PropertyDescriptor;
-import org.mule.galaxy.Registry;
-import org.mule.galaxy.RegistryException;
-import org.mule.galaxy.Settings;
-import org.mule.galaxy.Workspace;
-import org.mule.galaxy.activity.ActivityManager;
-import org.mule.galaxy.event.EntryMovedEvent;
-import org.mule.galaxy.event.EventManager;
-import org.mule.galaxy.event.WorkspaceCreatedEvent;
-import org.mule.galaxy.extension.Extension;
-import org.mule.galaxy.impl.jcr.query.QueryBuilder;
-import org.mule.galaxy.impl.jcr.query.SimpleQueryBuilder;
-import org.mule.galaxy.lifecycle.LifecycleManager;
-import org.mule.galaxy.policy.ArtifactPolicy;
-import org.mule.galaxy.policy.PolicyManager;
-import org.mule.galaxy.query.AbstractFunction;
-import org.mule.galaxy.query.FunctionCall;
-import org.mule.galaxy.query.FunctionRegistry;
-import org.mule.galaxy.query.OpRestriction;
-import org.mule.galaxy.query.OpRestriction.Operator;
-import org.mule.galaxy.query.QueryException;
-import org.mule.galaxy.query.Restriction;
-import org.mule.galaxy.query.SearchResults;
-import org.mule.galaxy.security.AccessControlManager;
-import org.mule.galaxy.security.AccessException;
-import org.mule.galaxy.security.Permission;
-import org.mule.galaxy.security.UserManager;
-import org.mule.galaxy.util.BundleUtils;
-import org.mule.galaxy.util.DateUtil;
-import org.mule.galaxy.util.Message;
-import org.mule.galaxy.util.SecurityUtils;
-import org.mule.galaxy.workspace.WorkspaceManager;
-
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.HashMap;
@@ -70,6 +26,52 @@ import javax.jcr.query.QueryResult;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.jackrabbit.util.ISO9075;
+import org.mule.galaxy.Artifact;
+import org.mule.galaxy.ArtifactVersion;
+import org.mule.galaxy.ContentHandler;
+import org.mule.galaxy.ContentService;
+import org.mule.galaxy.Dao;
+import org.mule.galaxy.DuplicateItemException;
+import org.mule.galaxy.Entry;
+import org.mule.galaxy.EntryVersion;
+import org.mule.galaxy.Item;
+import org.mule.galaxy.Link;
+import org.mule.galaxy.LinkType;
+import org.mule.galaxy.NotFoundException;
+import org.mule.galaxy.Registry;
+import org.mule.galaxy.RegistryException;
+import org.mule.galaxy.Settings;
+import org.mule.galaxy.Workspace;
+import org.mule.galaxy.activity.ActivityManager;
+import org.mule.galaxy.event.EntryMovedEvent;
+import org.mule.galaxy.event.EventManager;
+import org.mule.galaxy.event.WorkspaceCreatedEvent;
+import org.mule.galaxy.extension.Extension;
+import org.mule.galaxy.impl.jcr.query.QueryBuilder;
+import org.mule.galaxy.impl.jcr.query.SimpleQueryBuilder;
+import org.mule.galaxy.lifecycle.LifecycleManager;
+import org.mule.galaxy.policy.Policy;
+import org.mule.galaxy.policy.PolicyManager;
+import org.mule.galaxy.query.AbstractFunction;
+import org.mule.galaxy.query.FunctionCall;
+import org.mule.galaxy.query.FunctionRegistry;
+import org.mule.galaxy.query.OpRestriction;
+import org.mule.galaxy.query.QueryException;
+import org.mule.galaxy.query.Restriction;
+import org.mule.galaxy.query.SearchResults;
+import org.mule.galaxy.query.OpRestriction.Operator;
+import org.mule.galaxy.security.AccessControlManager;
+import org.mule.galaxy.security.AccessException;
+import org.mule.galaxy.security.Permission;
+import org.mule.galaxy.security.UserManager;
+import org.mule.galaxy.type.PropertyDescriptor;
+import org.mule.galaxy.type.Type;
+import org.mule.galaxy.type.TypeManager;
+import org.mule.galaxy.util.BundleUtils;
+import org.mule.galaxy.util.DateUtil;
+import org.mule.galaxy.util.Message;
+import org.mule.galaxy.util.SecurityUtils;
+import org.mule.galaxy.workspace.WorkspaceManager;
 import org.springframework.dao.DataAccessException;
 import org.springmodules.jcr.JcrCallback;
 import org.springmodules.jcr.JcrTemplate;
@@ -90,8 +92,6 @@ public class JcrRegistryImpl extends JcrTemplate implements Registry, JcrRegistr
     private PolicyManager policyManager;
     
     private UserManager userManager;
-
-    private Dao<PropertyDescriptor> propertyDescriptorDao;
     
     private Dao<LinkType> linkTypeDao;
     
@@ -109,7 +109,7 @@ public class JcrRegistryImpl extends JcrTemplate implements Registry, JcrRegistr
     
     private String id;
     
-    private Map<String, QueryBuilder> queryBuilders;
+    private List<QueryBuilder> queryBuilders;
     
     private SimpleQueryBuilder simpleQueryBuilder = new SimpleQueryBuilder(new String[0], false);
 
@@ -655,7 +655,7 @@ public class JcrRegistryImpl extends JcrTemplate implements Registry, JcrRegistr
                 {
                     log.debug("Query: " + qstr.toString());
                 }
-                
+                System.out.println("Query: " + qstr.toString());
                 Query jcrQuery = qm.createQuery(qstr, Query.XPATH);
                 
                 QueryResult result = jcrQuery.execute();
@@ -909,13 +909,13 @@ public class JcrRegistryImpl extends JcrTemplate implements Registry, JcrRegistr
     }
 
     private QueryBuilder getQueryBuilder(String property) throws QueryException {
-        QueryBuilder qb = queryBuilders.get(property);
-        
-        if (qb == null) {
-            return simpleQueryBuilder;
+        for (QueryBuilder qb : queryBuilders) {
+             if (qb.getProperties().contains(property)) {
+                 return qb;
+             }
         }
         
-        return qb;
+        return simpleQueryBuilder;
     }
 
     @SuppressWarnings("unchecked")
@@ -959,37 +959,6 @@ public class JcrRegistryImpl extends JcrTemplate implements Registry, JcrRegistr
         });
     }
 
-    public PropertyDescriptor getPropertyDescriptorByName(final String propertyName) {
-        
-        return (PropertyDescriptor) execute(new JcrCallback() {
-            public Object doInJcr(Session session) throws IOException, RepositoryException {
-                List<PropertyDescriptor> pds = propertyDescriptorDao.find("property", propertyName);
-                
-                if (pds.size() == 0) {
-                    return null;
-                }
-                return pds.get(0);
-            }
-        });
-    }
-
-    public PropertyDescriptor getPropertyDescriptor(final String id) throws NotFoundException {
-        return propertyDescriptorDao.get(id);
-    }
-    
-    public Collection<PropertyDescriptor> getPropertyDescriptors() throws RegistryException {
-        return propertyDescriptorDao.listAll();
-    }
-
-    public void savePropertyDescriptor(PropertyDescriptor pd) throws RegistryException, AccessException, DuplicateItemException, NotFoundException {
-        accessControlManager.assertAccess(Permission.MANAGE_PROPERTIES);
-        propertyDescriptorDao.save(pd);
-    }
-    
-    public void deletePropertyDescriptor(String id) throws RegistryException {
-        propertyDescriptorDao.delete(id);
-    }
-    
     public void initialize() throws Exception {
         
         Session session = getSessionFactory().getSession();
@@ -1012,8 +981,32 @@ public class JcrRegistryImpl extends JcrTemplate implements Registry, JcrRegistr
             w.setName(settings.getDefaultWorkspaceName());
 
             workspaces.setProperty(REPOSITORY_LAYOUT_VERSION, "2");
+
+            final PropertyDescriptor lifecyclePD = new PropertyDescriptor();
+            lifecyclePD.setProperty(PRIMARY_LIFECYCLE);
+            lifecyclePD.setDescription("Primary lifecycle");
+            lifecyclePD.setExtension(getExtension("lifecycleExtension"));
+            
+            final Type defaultType = new Type();
+            defaultType.setName("Base Type");
+            defaultType.setProperties(Arrays.asList(lifecyclePD));
+            
+            SecurityUtils.doPriveleged(new Runnable() {
+
+                public void run() {
+                    try {
+                        TypeManager tm = localWorkspaceManager.getTypeManager();
+                        tm.savePropertyDescriptor(lifecyclePD);
+                        tm.saveType(defaultType);
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+                
+            });
         } 
         id = workspaces.getUUID();
+        
         
         session.save();
         
@@ -1021,13 +1014,22 @@ public class JcrRegistryImpl extends JcrTemplate implements Registry, JcrRegistr
             ch.setRegistry(this);
         }
         
-        for (ArtifactPolicy a : policyManager.getPolicies()) {
+        for (Policy a : policyManager.getPolicies()) {
             a.setRegistry(this);
         }
         
         session.logout();
         
         idToWorkspaceManager.put(localWorkspaceManager.getId(), localWorkspaceManager);
+    }
+
+    private Extension getExtension(String id) {
+        for (Extension e : getExtensions()) {
+            if (e.getId().equals(id)) {
+                return e;
+            }
+        }
+        return null;
     }
 
     public void addLinks(Item artifactVersion, final LinkType type, final Item... toLinkTo)
@@ -1061,12 +1063,7 @@ public class JcrRegistryImpl extends JcrTemplate implements Registry, JcrRegistr
     }
     
     public void setQueryBuilders(List<QueryBuilder> qbs) {
-        queryBuilders = new HashMap<String, QueryBuilder>();
-        for (QueryBuilder q : qbs) {
-            for (String prop : q.getProperties()) {
-                queryBuilders.put(prop, q);
-            }
-        }
+        queryBuilders = qbs;
     }
 
     public List<Extension> getExtensions() {
@@ -1122,10 +1119,6 @@ public class JcrRegistryImpl extends JcrTemplate implements Registry, JcrRegistr
 
     public UserManager getUserManager() {
         return userManager;
-    }
-
-    public void setPropertyDescriptorDao(Dao<PropertyDescriptor> propertyDescriptorDao) {
-        this.propertyDescriptorDao = propertyDescriptorDao;
     }
 
     public Dao<LinkType> getLinkTypeDao() {

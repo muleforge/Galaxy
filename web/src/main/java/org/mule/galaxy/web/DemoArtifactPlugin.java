@@ -18,11 +18,11 @@
 
 package org.mule.galaxy.web;
 
-import org.mule.galaxy.PropertyDescriptor;
 import org.mule.galaxy.Workspace;
 import org.mule.galaxy.impl.plugin.AbstractArtifactPlugin;
 import org.mule.galaxy.security.User;
 import org.mule.galaxy.security.UserManager;
+import org.mule.galaxy.type.PropertyDescriptor;
 
 public class DemoArtifactPlugin extends AbstractArtifactPlugin {
     private UserManager userManager;

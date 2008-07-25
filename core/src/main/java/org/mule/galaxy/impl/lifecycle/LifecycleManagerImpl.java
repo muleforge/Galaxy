@@ -21,7 +21,9 @@ import javax.jcr.query.QueryResult;
 import org.apache.jackrabbit.util.ISO9075;
 import org.mule.galaxy.DuplicateItemException;
 import org.mule.galaxy.EntryVersion;
+import org.mule.galaxy.Item;
 import org.mule.galaxy.NotFoundException;
+import org.mule.galaxy.PropertyException;
 import org.mule.galaxy.Workspace;
 import org.mule.galaxy.activity.ActivityManager;
 import org.mule.galaxy.event.EventManager;
@@ -34,7 +36,7 @@ import org.mule.galaxy.lifecycle.LifecycleManager;
 import org.mule.galaxy.lifecycle.Phase;
 import org.mule.galaxy.lifecycle.TransitionException;
 import org.mule.galaxy.policy.ApprovalMessage;
-import org.mule.galaxy.policy.ArtifactPolicy;
+import org.mule.galaxy.policy.Policy;
 import org.mule.galaxy.policy.PolicyException;
 import org.mule.galaxy.policy.PolicyManager;
 import org.mule.galaxy.security.User;
@@ -54,7 +56,7 @@ public class LifecycleManagerImpl extends AbstractDao<Lifecycle>
     private static final String DEFAULT = "default";
     private static final String NEXT_PHASES = "nextPhases";
 
-    private List<ArtifactPolicy> phaseApprovalListeners = new ArrayList<ArtifactPolicy>();
+    private List<Policy> phaseApprovalListeners = new ArrayList<Policy>();
     private PolicyManager policyManager;
     private ApplicationContext context;
     private ActivityManager activityManager;
@@ -204,8 +206,8 @@ public class LifecycleManagerImpl extends AbstractDao<Lifecycle>
         return pNode;
     }
     
-    public boolean isTransitionAllowed(EntryVersion a, Phase p2) {
-        Phase p = a.getPhase();
+    public boolean isTransitionAllowed(Item item, String property, Phase p2) {
+        Phase p = (Phase) item.getProperty(property);
         Lifecycle l = p2.getLifecycle();
         
         if (p == null || !l.equals(p.getLifecycle())) {
@@ -217,23 +219,27 @@ public class LifecycleManagerImpl extends AbstractDao<Lifecycle>
         }
     }
     
-    public void transition(final EntryVersion a, 
+    public void transition(final Item item, 
+                           final String property, 
                            final Phase p, 
                            final User user) throws TransitionException, PolicyException {
-        if (!isTransitionAllowed(a, p)) {
+        if (!isTransitionAllowed(item, property, p)) {
             throw new TransitionException(p);
         }
         
         executeWithPolicyException(new JcrCallback() {
 
             public Object doInJcr(Session session) throws IOException, RepositoryException {
-                JcrVersion artifact = (JcrVersion) a;
-                artifact.setPhase(p);
-                
-                EntryVersion previous = (EntryVersion) a.getPrevious();
-                
+                try {
+                    item.setProperty(property, p);
+                } catch (PropertyException e) {
+                    throw new RuntimeException(e);
+                } catch (PolicyException e) {
+                    throw new RuntimeException(e);
+                }
+
                 boolean approved = true;
-                List<ApprovalMessage> approvals = getPolicyManager().approve(previous, a);
+                List<ApprovalMessage> approvals = getPolicyManager().approve(item);
                 for (ApprovalMessage app : approvals) {
                     if (!app.isWarning()) {
                         approved = false;
@@ -242,7 +248,7 @@ public class LifecycleManagerImpl extends AbstractDao<Lifecycle>
                 }
                 
                 if (!approved) {
-                    throw new RuntimeException(new PolicyException(approvals));
+                   
                 }
 
                 //final String previousPhase = previous.getPhase().getName();
@@ -250,7 +256,7 @@ public class LifecycleManagerImpl extends AbstractDao<Lifecycle>
                 session.save();
 
                 LifecycleTransitionEvent event = new LifecycleTransitionEvent(
-                        artifact.getParent().getPath(), artifact.getVersionLabel(),
+                        item.getParent().getPath(),
                         "", p.getName(), p.getLifecycle().getName());
                 event.setUser(SecurityUtils.getCurrentUser());
                 eventManager.fireEvent(event);
@@ -279,11 +285,11 @@ public class LifecycleManagerImpl extends AbstractDao<Lifecycle>
         }
     }
     
-    public List<ArtifactPolicy> getPhaseApprovalListeners() {
+    public List<Policy> getPhaseApprovalListeners() {
         return phaseApprovalListeners;
     }
 
-    public void setPhaseApprovalListeners(List<ArtifactPolicy> phaseApprovalListeners) {
+    public void setPhaseApprovalListeners(List<Policy> phaseApprovalListeners) {
         this.phaseApprovalListeners = phaseApprovalListeners;
     }
 

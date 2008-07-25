@@ -34,7 +34,6 @@ import org.mule.galaxy.web.rpc.WApprovalMessage;
 
 public class ArtifactCollectionPolicyResultsPanel extends AbstractErrorShowingComposite {
 
-    
     private final Map policyFailures;
     private FlowPanel panel;
     private RegistryMenuPanel menuPanel;
@@ -61,8 +60,8 @@ public class ArtifactCollectionPolicyResultsPanel extends AbstractErrorShowingCo
         menuPanel.onShow();
         panel.clear();
         
-        panel.add(createTitle("Artifact Policy Failures"));
-        panel.add(new Label("The policies could not be applied as not all artifacts met the specified policies."));
+        panel.add(createTitle("Policy Failures"));
+        panel.add(new Label("The policies could not be applied as not all policies were met."));
         
         for (Iterator itr = policyFailures.entrySet().iterator(); itr.hasNext();) {
             Map.Entry e = (Map.Entry) itr.next();

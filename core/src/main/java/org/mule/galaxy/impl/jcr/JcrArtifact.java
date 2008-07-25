@@ -151,11 +151,15 @@ public class JcrArtifact extends JcrEntry implements Artifact {
     }
 
     public ContentHandler getContentHandler() {
+        if (contentHandler == null) {
+            if (getDocumentType() != null) {
+                contentHandler = manager.getContentService().getContentHandler(getDocumentType());
+            } else {
+                contentHandler = manager.getContentService().getContentHandler(getContentType());
+            }
+        }
         return contentHandler;
     }
 
-    public void setContentHandler(ContentHandler contentHandler) {
-        this.contentHandler = contentHandler;
-    }
 
 }

@@ -22,7 +22,6 @@ import org.apache.jackrabbit.value.StringValue;
 import org.mule.galaxy.Item;
 import org.mule.galaxy.Link;
 import org.mule.galaxy.LinkType;
-import org.mule.galaxy.PropertyDescriptor;
 import org.mule.galaxy.PropertyException;
 import org.mule.galaxy.PropertyInfo;
 import org.mule.galaxy.RegistryException;
@@ -30,6 +29,7 @@ import org.mule.galaxy.activity.ActivityManager.EventType;
 import org.mule.galaxy.extension.Extension;
 import org.mule.galaxy.policy.PolicyException;
 import org.mule.galaxy.security.AccessException;
+import org.mule.galaxy.type.PropertyDescriptor;
 import org.mule.galaxy.util.BundleUtils;
 import org.mule.galaxy.util.DateUtil;
 import org.mule.galaxy.util.Message;
@@ -44,7 +44,6 @@ public abstract class AbstractJcrItem implements Item {
     public static final String UPDATED = "updated";
     public static final String LINKS = "dependencies";
     private static final String LINK_NODE_TYPE = "galaxy:link";
-    
     protected Node node;
     private JcrWorkspaceManager manager;
 
@@ -109,7 +108,7 @@ public abstract class AbstractJcrItem implements Item {
                 throw new PropertyException(new Message("SPACE_NOT_ALLOWED", getBundle()));
             }
             
-            PropertyDescriptor pd = getManager().getRegistry().getPropertyDescriptorByName(name);
+            PropertyDescriptor pd = getManager().getTypeManager().getPropertyDescriptorByName(name);
             if (pd != null && pd.getExtension() != null) {
         	value = pd.getExtension().getInternalValue(this, pd, value);
     	    }
@@ -190,7 +189,7 @@ public abstract class AbstractJcrItem implements Item {
     }
 
     public Object getProperty(String name) {
-	PropertyDescriptor pd = manager.getRegistry().getPropertyDescriptorByName(name);
+	PropertyDescriptor pd = manager.getTypeManager().getPropertyDescriptorByName(name);
 	
 	Object value = JcrUtil.getProperty(name, node);
 	if (pd != null && pd.getExtension() != null) {
@@ -223,6 +222,7 @@ public abstract class AbstractJcrItem implements Item {
             }
             
             final Value[] values = p.getValues();
+            final Item item = this;
             return new Iterator<PropertyInfo>() {
                 private int i = 0;
                 
@@ -233,7 +233,7 @@ public abstract class AbstractJcrItem implements Item {
                 public PropertyInfo next() {
                     i++;
                     try {
-                        return new PropertyInfoImpl(values[i-1].getString(), node, manager.getRegistry());
+                        return new PropertyInfoImpl(item, values[i-1].getString(), node, manager.getTypeManager());
                     } catch (RepositoryException e) {
                         throw new RuntimeException(e);
                     }
@@ -268,7 +268,7 @@ public abstract class AbstractJcrItem implements Item {
             throw new RuntimeException(e);
         }
         
-        return new PropertyInfoImpl(name, node, manager.getRegistry());
+        return new PropertyInfoImpl(this, name, node, manager.getTypeManager());
     }
 
     public void setLocked(String name, boolean locked) {
@@ -347,4 +347,33 @@ public abstract class AbstractJcrItem implements Item {
             throw new RuntimeException(e);
         }
     }
+
+    @Override
+    public int hashCode() {
+        String id = getId();
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + ((id == null) ? 0 : id.hashCode());
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+        if (obj == null)
+            return false;
+        if (getClass() != obj.getClass())
+            return false;
+        AbstractJcrItem other = (AbstractJcrItem)obj;
+        String id = getId();
+        String otherId = other.getId();
+        if (id == null) {
+            if (otherId != null)
+                return false;
+        } else if (!id.equals(otherId))
+            return false;
+        return true;
+    }
+    
 }

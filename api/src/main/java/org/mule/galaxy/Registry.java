@@ -13,6 +13,8 @@ import java.util.Set;
 
 public interface Registry {
     
+    String PRIMARY_LIFECYCLE = "primary.lifecycle";
+
     /**
      * Get a universally unique ID for this registry, which can be used for things such as atom feeds.
      * @return
@@ -58,19 +60,7 @@ public interface Registry {
     
     /* Extensions */
     List<Extension> getExtensions();
-    
-    /* Property related methods */
-     
-    Collection<PropertyDescriptor> getPropertyDescriptors() throws RegistryException;
 
-    PropertyDescriptor getPropertyDescriptor(String propertyId) throws RegistryException, NotFoundException;
-
-    void savePropertyDescriptor(PropertyDescriptor pd) throws RegistryException, AccessException, DuplicateItemException, NotFoundException;
-    
-    void deletePropertyDescriptor(String id) throws RegistryException;
-    
-    PropertyDescriptor getPropertyDescriptorByName(final String propertyName);
-    
 
     /* Link related operations */
     

@@ -27,7 +27,6 @@ import org.mule.galaxy.EntryVersion;
 import org.mule.galaxy.Item;
 import org.mule.galaxy.Link;
 import org.mule.galaxy.NotFoundException;
-import org.mule.galaxy.PropertyDescriptor;
 import org.mule.galaxy.PropertyException;
 import org.mule.galaxy.PropertyInfo;
 import org.mule.galaxy.Registry;
@@ -48,8 +47,8 @@ import org.mule.galaxy.lifecycle.LifecycleManager;
 import org.mule.galaxy.lifecycle.Phase;
 import org.mule.galaxy.lifecycle.TransitionException;
 import org.mule.galaxy.policy.ApprovalMessage;
-import org.mule.galaxy.policy.ArtifactCollectionPolicyException;
-import org.mule.galaxy.policy.ArtifactPolicy;
+import org.mule.galaxy.policy.ItemCollectionPolicyException;
+import org.mule.galaxy.policy.Policy;
 import org.mule.galaxy.policy.PolicyException;
 import org.mule.galaxy.policy.PolicyManager;
 import org.mule.galaxy.query.OpRestriction;
@@ -65,6 +64,7 @@ import org.mule.galaxy.security.AccessException;
 import org.mule.galaxy.security.Permission;
 import org.mule.galaxy.security.User;
 import org.mule.galaxy.security.UserManager;
+import org.mule.galaxy.type.PropertyDescriptor;
 import org.mule.galaxy.util.SecurityUtils;
 import org.mule.galaxy.view.ArtifactView;
 import org.mule.galaxy.view.ArtifactViewManager;
@@ -1326,7 +1326,7 @@ public class RegistryServiceImpl implements RegistryService {
             TransitionResponse tr = new TransitionResponse();
 
             try {
-                lifecycleManager.transition(artifact, nextPhase, getCurrentUser());
+                lifecycleManager.transition(artifact, null, nextPhase, getCurrentUser());
 
                 tr.setSuccess(true);
             } catch (TransitionException e) {
@@ -1425,12 +1425,12 @@ public class RegistryServiceImpl implements RegistryService {
 
     public Collection getActivePoliciesForLifecycle(String lifecycleName, String workspaceId)
             throws RPCException {
-        Collection<ArtifactPolicy> pols = null;
+        Collection<Policy> pols = null;
         Lifecycle lifecycle = localLifecycleManager.getLifecycle(lifecycleName);
         try {
             if (workspaceId != null) {
                 Workspace w = registry.getWorkspace(workspaceId);
-                pols = policyManager.getActivePolicies(w, lifecycle);
+                pols = policyManager.getActivePolicies(w, lifecycle, false);
             } else {
                 pols = policyManager.getActivePolicies(lifecycle);
             }
@@ -1447,12 +1447,12 @@ public class RegistryServiceImpl implements RegistryService {
 
     public Collection getActivePoliciesForPhase(String lifecycle, String phaseName, String workspaceId)
             throws RPCException {
-        Collection<ArtifactPolicy> pols = null;
+        Collection<Policy> pols = null;
         Phase phase = localLifecycleManager.getLifecycle(lifecycle).getPhase(phaseName);
         try {
             if (workspaceId != null) {
                 Workspace w = registry.getWorkspace(workspaceId);
-                pols = policyManager.getActivePolicies(w, phase);
+                pols = policyManager.getActivePolicies(w, phase, false);
             } else {
                 pols = policyManager.getActivePolicies(phase);
             }
@@ -1471,7 +1471,7 @@ public class RegistryServiceImpl implements RegistryService {
     public void setActivePolicies(String workspace, String lifecycle, String phase, Collection ids)
             throws RPCException, ApplyPolicyException, ItemNotFoundException {
         Lifecycle l = localLifecycleManager.getLifecycle(lifecycle);
-        List<ArtifactPolicy> policies = getArtifactPolicies(ids);
+        List<Policy> policies = getArtifactPolicies(ids);
 
         try {
             if (phase != null) {
@@ -1484,26 +1484,26 @@ public class RegistryServiceImpl implements RegistryService {
                 List<Phase> phases = Arrays.asList(p);
 
                 if (workspace == null || "".equals(workspace)) {
-                    policyManager.setActivePolicies(phases, policies.toArray(new ArtifactPolicy[policies
+                    policyManager.setActivePolicies(phases, policies.toArray(new Policy[policies
                             .size()]));
                 } else {
                     Workspace w = registry.getWorkspace(workspace);
-                    policyManager.setActivePolicies(w, phases, policies.toArray(new ArtifactPolicy[policies
+                    policyManager.setActivePolicies(w, phases, policies.toArray(new Policy[policies
                             .size()]));
                 }
             } else {
                 if (workspace == null || "".equals(workspace)) {
-                    policyManager.setActivePolicies(l, policies.toArray(new ArtifactPolicy[policies.size()]));
+                    policyManager.setActivePolicies(l, policies.toArray(new Policy[policies.size()]));
                 } else {
                     Workspace w = registry.getWorkspace(workspace);
                     policyManager.setActivePolicies(w, l, policies
-                            .toArray(new ArtifactPolicy[policies.size()]));
+                            .toArray(new Policy[policies.size()]));
                 }
             }
         } catch (RegistryException e) {
             log.error(e.getMessage(), e);
             throw new RPCException(e.getMessage());
-        } catch (ArtifactCollectionPolicyException e) {
+        } catch (ItemCollectionPolicyException e) {
             Map<BasicArtifactInfo, Collection<WApprovalMessage>> failures = new HashMap<BasicArtifactInfo, Collection<WApprovalMessage>>();
             for (Map.Entry<EntryVersion, List<ApprovalMessage>> entry : e.getPolicyFailures().entrySet()) {
                 EntryVersion av = entry.getKey();
@@ -1532,20 +1532,20 @@ public class RegistryServiceImpl implements RegistryService {
         }
     }
 
-    private List<ArtifactPolicy> getArtifactPolicies(Collection ids) {
-        List<ArtifactPolicy> policies = new ArrayList<ArtifactPolicy>();
+    private List<Policy> getArtifactPolicies(Collection ids) {
+        List<Policy> policies = new ArrayList<Policy>();
         for (Iterator itr = ids.iterator(); itr.hasNext();) {
             String id = (String) itr.next();
 
-            ArtifactPolicy policy = policyManager.getPolicy(id);
+            Policy policy = policyManager.getPolicy(id);
             policies.add(policy);
         }
         return policies;
     }
 
-    private Collection getArtifactPolicyIds(Collection<ArtifactPolicy> pols) {
+    private Collection getArtifactPolicyIds(Collection<Policy> pols) {
         ArrayList<String> polNames = new ArrayList<String>();
-        for (ArtifactPolicy ap : pols) {
+        for (Policy ap : pols) {
             polNames.add(ap.getId());
         }
         return polNames;
@@ -1613,9 +1613,9 @@ public class RegistryServiceImpl implements RegistryService {
     }
 
     public Collection getPolicies() throws RPCException {
-        Collection<ArtifactPolicy> policies = policyManager.getPolicies();
+        Collection<Policy> policies = policyManager.getPolicies();
         List<WArtifactPolicy> gwtPolicies = new ArrayList<WArtifactPolicy>();
-        for (ArtifactPolicy p : policies) {
+        for (Policy p : policies) {
             gwtPolicies.add(toWeb(p));
         }
         Collections.sort(gwtPolicies, new Comparator<WArtifactPolicy>() {
@@ -1702,7 +1702,7 @@ public class RegistryServiceImpl implements RegistryService {
         return l;
     }
 
-    private WArtifactPolicy toWeb(ArtifactPolicy p) {
+    private WArtifactPolicy toWeb(Policy p) {
         WArtifactPolicy wap = new WArtifactPolicy();
         wap.setId(p.getId());
         wap.setDescription(p.getDescription());

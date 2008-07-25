@@ -14,14 +14,14 @@ import org.acegisecurity.providers.AuthenticationProvider;
 import org.acegisecurity.providers.UsernamePasswordAuthenticationToken;
 import org.mule.galaxy.Artifact;
 import org.mule.galaxy.EntryResult;
-import org.mule.galaxy.ArtifactVersion;
-import org.mule.galaxy.PropertyDescriptor;
+import org.mule.galaxy.Item;
 import org.mule.galaxy.Registry;
 import org.mule.galaxy.Workspace;
 import org.mule.galaxy.policy.ApprovalMessage;
-import org.mule.galaxy.policy.ArtifactPolicy;
+import org.mule.galaxy.policy.Policy;
 import org.mule.galaxy.query.Query;
 import org.mule.galaxy.test.AbstractGalaxyTest;
+import org.mule.galaxy.type.PropertyDescriptor;
 import org.mule.galaxy.web.rpc.ArtifactGroup;
 import org.mule.galaxy.web.rpc.ArtifactVersionInfo;
 import org.mule.galaxy.web.rpc.BasicArtifactInfo;
@@ -350,12 +350,12 @@ public class RegistryServiceTest extends AbstractGalaxyTest {
         assertEquals("name", sp.getProperty());
         assertEquals("foo", sp.getValue());
     }
-    private final class FauxPolicy implements ArtifactPolicy {
+    private final class FauxPolicy implements Policy {
         public String getDescription() {
             return "Faux policy description";
         }
 
-        public boolean applies(Artifact a) {
+        public boolean applies(Item item) {
             return true;
         }
 
@@ -367,7 +367,7 @@ public class RegistryServiceTest extends AbstractGalaxyTest {
             return "Faux policy";
         }
 
-        public Collection<ApprovalMessage> isApproved(Artifact a, ArtifactVersion previous, ArtifactVersion next) {
+        public Collection<ApprovalMessage> isApproved(Item item) {
             return Arrays.asList(new ApprovalMessage("Not approved"));
         }
 

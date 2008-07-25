@@ -1,5 +1,7 @@
 package org.mule.galaxy;
 
+import org.mule.galaxy.type.PropertyDescriptor;
+
 public interface PropertyInfo {
     String getName();
 
