@@ -4,9 +4,11 @@ import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.UUID;
@@ -26,7 +28,6 @@ import org.mule.galaxy.PropertyException;
 import org.mule.galaxy.PropertyInfo;
 import org.mule.galaxy.RegistryException;
 import org.mule.galaxy.activity.ActivityManager.EventType;
-import org.mule.galaxy.extension.Extension;
 import org.mule.galaxy.policy.PolicyException;
 import org.mule.galaxy.security.AccessException;
 import org.mule.galaxy.type.PropertyDescriptor;
@@ -46,7 +47,8 @@ public abstract class AbstractJcrItem implements Item {
     private static final String LINK_NODE_TYPE = "galaxy:link";
     protected Node node;
     private JcrWorkspaceManager manager;
-
+    private Map<String, Object> propertyCache = new HashMap<String, Object>();
+    
     public AbstractJcrItem(Node node, JcrWorkspaceManager manager) throws RepositoryException {
         this.node = node;
         this.manager = manager;
@@ -108,6 +110,11 @@ public abstract class AbstractJcrItem implements Item {
                 throw new PropertyException(new Message("SPACE_NOT_ALLOWED", getBundle()));
             }
             
+            if (value == null) {
+                propertyCache.remove(name);
+            } else {
+                propertyCache.put(name, value);
+            }
             PropertyDescriptor pd = getManager().getTypeManager().getPropertyDescriptorByName(name);
             if (pd != null && pd.getExtension() != null) {
         	value = pd.getExtension().getInternalValue(this, pd, value);
@@ -191,7 +198,13 @@ public abstract class AbstractJcrItem implements Item {
     public Object getProperty(String name) {
 	PropertyDescriptor pd = manager.getTypeManager().getPropertyDescriptorByName(name);
 	
-	Object value = JcrUtil.getProperty(name, node);
+	Object value = propertyCache.get(name);
+	if (value == null) {
+	    value = JcrUtil.getProperty(name, node);
+	} else {
+	    return value;
+	}
+	
 	if (pd != null && pd.getExtension() != null) {
 	    value = pd.getExtension().getExternalValue(this, pd, value);
 	}

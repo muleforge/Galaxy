@@ -41,7 +41,7 @@ public class DemoArtifactPlugin extends AbstractArtifactPlugin {
         add(w, user, "hello.wsdl", "/wsdl/imports/hello.wsdl");   
         
         PropertyDescriptor pd = new PropertyDescriptor("location", "Location", false);
-        registry.savePropertyDescriptor(pd);
+        typeManager.savePropertyDescriptor(pd);
     }
 
     private void add(Workspace w, User user, String name, String resource) 

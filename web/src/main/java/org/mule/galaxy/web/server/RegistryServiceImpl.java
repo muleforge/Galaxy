@@ -1193,7 +1193,7 @@ public class RegistryServiceImpl implements RegistryService {
             if (wpd.getId() == null) {
                 pd = new PropertyDescriptor();
             } else {
-                pd = registry.getPropertyDescriptor(wpd.getId());
+                pd = typeManager.getPropertyDescriptor(wpd.getId());
             }
 
             pd.setProperty(wpd.getName());
