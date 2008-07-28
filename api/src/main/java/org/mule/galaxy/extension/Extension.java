@@ -11,13 +11,15 @@ public interface Extension extends Identifiable {
 
     /**
      * Properties could be lifecycle information, associated contacts, links, etc.
-     * This method will store them in  
+     * 
      * @param entry
      * @param properties
      */
     Object getInternalValue(Item entry, PropertyDescriptor pd, Object externalValue) throws PolicyException;
     
     Object getExternalValue(Item entry, PropertyDescriptor pd, Object storedValue);
+    
+    void validate(Item entry, PropertyDescriptor pd, Object valueToStore) throws PolicyException;
     
     boolean isMultivalueSupported();
 }

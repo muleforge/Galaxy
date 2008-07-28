@@ -19,7 +19,7 @@ import org.apache.commons.io.IOUtils;
 import org.mule.galaxy.RegistryException;
 import org.mule.galaxy.impl.jcr.JcrUtil;
 import org.mule.galaxy.lifecycle.LifecycleManager;
-import org.mule.galaxy.policy.ItemCollectionPolicyException;
+import org.mule.galaxy.policy.PolicyException;
 import org.mule.galaxy.policy.Policy;
 import org.mule.galaxy.policy.PolicyManager;
 import org.mule.galaxy.test.AbstractAtomTest;

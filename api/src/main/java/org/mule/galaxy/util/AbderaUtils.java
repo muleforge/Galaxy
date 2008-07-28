@@ -3,9 +3,11 @@ package org.mule.galaxy.util;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.abdera.protocol.server.context.ResponseContextException;
 import org.apache.abdera.protocol.server.context.SimpleResponseContext;
+import org.mule.galaxy.Item;
 import org.mule.galaxy.policy.ApprovalMessage;
 import org.mule.galaxy.policy.PolicyException;
 
@@ -46,21 +48,29 @@ public class AbderaUtils {
     }
     public static ResponseContextException createArtifactPolicyExceptionResponse(PolicyException e) {
         final StringBuilder s = new StringBuilder();
-        s.append("<html><head><title>Artifact Policy Failure</title></head><body>");
+        s.append("<html><head><title>Policy Failures</title></head><body>");
         
-        List<ApprovalMessage> approvals = e.getApprovals();
+        Map<Item, List<ApprovalMessage>> approvals = e.getPolicyFailures();
         
-        for (ApprovalMessage m : approvals) {
-            if (m.isWarning()) {
-                s.append("<div class=\"warning\">");
-            } else {
-                s.append("<div class=\"failure\">");
-            }
+        for (Map.Entry<Item, List<ApprovalMessage>> entry : approvals.entrySet()) {
+            Item item = entry.getKey();
             
-            s.append(m.getMessage());
+            s.append("<div class=\"item\">");
+            s.append("<span class=\"itemId\">").append(item.getId()).append("</span>");
+            s.append("<span class=\"path\">").append(item.getPath()).append("</span>");
+            
+            for (ApprovalMessage m : entry.getValue()) {
+                if (m.isWarning()) {
+                    s.append("<div class=\"warning\">");
+                } else {
+                    s.append("<div class=\"failure\">");
+                }
+                
+                s.append(m.getMessage());
+                s.append("</div>");
+            }
             s.append("</div>");
         }
-        
         s.append("</body></html>");
         SimpleResponseContext rc = new SimpleResponseContext() {
             @Override

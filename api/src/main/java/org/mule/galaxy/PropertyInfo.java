@@ -9,6 +9,8 @@ public interface PropertyInfo {
     
     Object getValue();
     
+    Object getInternalValue();
+    
     PropertyDescriptor getPropertyDescriptor();
     
     boolean isLocked();

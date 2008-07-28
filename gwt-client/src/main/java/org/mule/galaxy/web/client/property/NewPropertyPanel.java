@@ -16,15 +16,10 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-package org.mule.galaxy.web.client.artifact;
-
-import org.mule.galaxy.web.client.ErrorPanel;
-import org.mule.galaxy.web.rpc.AbstractCallback;
-import org.mule.galaxy.web.rpc.RegistryServiceAsync;
+package org.mule.galaxy.web.client.property;
 
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.ChangeListener;
-import com.google.gwt.user.client.ui.CheckBox;
 import com.google.gwt.user.client.ui.ClickListener;
 import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.FlexTable;
@@ -37,10 +32,17 @@ import com.google.gwt.user.client.ui.SimplePanel;
 import com.google.gwt.user.client.ui.TextBox;
 import com.google.gwt.user.client.ui.Widget;
 
+import java.util.Collections;
 import java.util.Iterator;
-import java.util.Map;
+import java.util.List;
 
-public class PropertyEditPanel extends Composite {
+import org.mule.galaxy.web.client.ErrorPanel;
+import org.mule.galaxy.web.client.util.PropertyDescriptorComparator;
+import org.mule.galaxy.web.rpc.AbstractCallback;
+import org.mule.galaxy.web.rpc.RegistryServiceAsync;
+import org.mule.galaxy.web.rpc.WPropertyDescriptor;
+
+public class NewPropertyPanel extends Composite {
 
     private ListBox propertiesBox;
     private TextBox valueTextBox;
@@ -48,17 +50,17 @@ public class PropertyEditPanel extends Composite {
     private FlexTable newPropertyTable;
     private ErrorPanel errorPanel;
     private String artifactId;
-    private ArtifactMetadataPanel metadataPanel;
+    private EntryMetadataPanel metadataPanel;
     private RegistryServiceAsync svc;
     private TextBox idTextBox;
     private TextBox descTextBox;
     private Panel propertiesPanel;
 
-    public PropertyEditPanel(final ErrorPanel registryPanel, 
+    public NewPropertyPanel(final ErrorPanel registryPanel, 
                              final RegistryServiceAsync registryService,
                              final String artifactId,
                              final Panel propertiesPanel,
-                             final ArtifactMetadataPanel metadataPanel,
+                             final EntryMetadataPanel metadataPanel,
                              final FlexTable table) {
         this.errorPanel = registryPanel;
         this.artifactId = artifactId;
@@ -90,9 +92,9 @@ public class PropertyEditPanel extends Composite {
         propPanelContainer.add(propertyPanel);
         panel.add(propPanelContainer);
         
-        svc.getProperties(new AbstractCallback(registryPanel) {
+        svc.getPropertyDescriptors(new AbstractCallback(registryPanel) {
             public void onSuccess(Object o) {
-                initProperties((Map) o);
+                initProperties((List) o);
             }
         });
         
@@ -100,7 +102,7 @@ public class PropertyEditPanel extends Composite {
         valueTextBox.setVisibleLength(40);
         panel.add(valueTextBox);
         
-        final PropertyEditPanel editPanel = this;
+        final NewPropertyPanel editPanel = this;
         Button saveButton = new Button("Save");
         saveButton.addClickListener(new ClickListener() {
             public void onClick(Widget arg0) {
@@ -208,10 +210,12 @@ public class PropertyEditPanel extends Composite {
         }
     }
 
-    protected void initProperties(Map o) {
-        for (Iterator itr = o.entrySet().iterator(); itr.hasNext();) {
-            Map.Entry e = (Map.Entry) itr.next();
-            propertiesBox.addItem((String)e.getValue(), (String)e.getKey());
+    protected void initProperties(List o) {
+        Collections.sort(o, new PropertyDescriptorComparator());
+        
+        for (Iterator itr = o.iterator(); itr.hasNext();) {
+            WPropertyDescriptor pd = (WPropertyDescriptor) itr.next();
+            propertiesBox.addItem(pd.getDescription(), pd.getName());
         }
     }
 

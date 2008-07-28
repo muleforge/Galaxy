@@ -32,7 +32,7 @@ import org.mule.galaxy.impl.lifecycle.LifecycleExtension;
 import org.mule.galaxy.lifecycle.Lifecycle;
 import org.mule.galaxy.lifecycle.Phase;
 import org.mule.galaxy.policy.ApprovalMessage;
-import org.mule.galaxy.policy.ItemCollectionPolicyException;
+import org.mule.galaxy.policy.PolicyException;
 import org.mule.galaxy.policy.Policy;
 import org.mule.galaxy.policy.PolicyManager;
 import org.mule.galaxy.query.OpRestriction;
@@ -93,16 +93,26 @@ public class PolicyManagerImpl implements PolicyManager, ApplicationContextAware
         policies.put(p.getId(), p);
     }
 
-    public List<ApprovalMessage> approve(Item item) {
-        Collection<Policy> policies = getActivePolicies(item);
-        List<ApprovalMessage> approvals = new ArrayList<ApprovalMessage>();
-        for (Policy p : policies) {
-            Collection<ApprovalMessage> list = p.isApproved((ArtifactVersion) item);
-            if (list != null) {
-                approvals.addAll(list);
+    public Map<Item, List<ApprovalMessage>> approve(Item item) throws PolicyException {
+        Map<Item, List<ApprovalMessage>> failures = new HashMap<Item, List<ApprovalMessage>>();
+        
+        approveItem(item, failures, (Collection<Phase>) null, getActivePolicies(item).toArray(new Policy[0]));
+        
+        boolean approved = true;
+        for (List<ApprovalMessage> msgs : failures.values()) {
+            for (ApprovalMessage a : msgs) {
+                if (!a.isWarning()) {
+                    approved = false;
+                    break;
+                }
             }
         }
-        return approvals;
+        
+        if (!approved) {
+            throw new PolicyException(failures);
+        }
+        
+        return failures;
     }
 
 
@@ -115,14 +125,14 @@ public class PolicyManagerImpl implements PolicyManager, ApplicationContextAware
     }
     
     public void setActivePolicies(Item item, Collection<Phase> phases, Policy... policies) 
-        throws ItemCollectionPolicyException {
+        throws PolicyException {
         
         Map<Item, List<ApprovalMessage>> failures = new HashMap<Item, List<ApprovalMessage>>();
         
         approveItem(item, failures, phases, policies);
         
         if (failures.size() > 0) {
-            throw new ItemCollectionPolicyException(failures);
+            throw new PolicyException(failures);
         }
         
         activatePolicy(itemsPhasesNodeId, phases, policies, item.getId());
@@ -132,14 +142,15 @@ public class PolicyManagerImpl implements PolicyManager, ApplicationContextAware
                              Map<Item, List<ApprovalMessage>> failures, 
                              Collection<Phase> phases, 
                              Policy... policies) 
-        throws ItemCollectionPolicyException {
+        throws PolicyException {
         
         for (Iterator<PropertyInfo> itr = item.getProperties(); itr.hasNext();) {
             PropertyInfo pi = (PropertyInfo) itr.next();
-            if (pi.getPropertyDescriptor().getExtension() instanceof LifecycleExtension) {
+            PropertyDescriptor pd = pi.getPropertyDescriptor();
+            if (pd != null && pd.getExtension() instanceof LifecycleExtension) {
                 Phase p = (Phase) pi.getValue();
 
-                if (phases.contains(p)) {
+                if (phases != null && phases.contains(p)) {
                     List<ApprovalMessage> messages = approve(item, policies);
                     
                     if (messages != null && messages.size() > 0) {
@@ -164,7 +175,7 @@ public class PolicyManagerImpl implements PolicyManager, ApplicationContextAware
                              Map<Item, List<ApprovalMessage>> failures, 
                              Lifecycle lifecycle, 
                              Policy... policies) 
-        throws ItemCollectionPolicyException {
+        throws PolicyException {
         
         for (Iterator<PropertyInfo> itr = item.getProperties(); itr.hasNext();) {
             PropertyInfo pi = (PropertyInfo) itr.next();
@@ -219,7 +230,7 @@ public class PolicyManagerImpl implements PolicyManager, ApplicationContextAware
     }
 
     public void setActivePolicies(Collection<Phase> phases, Policy... policies) 
-        throws ItemCollectionPolicyException, RegistryException {
+        throws PolicyException, RegistryException {
         // TODO don't hard code this
         Collection<PropertyDescriptor> pds = 
             typeManager.getPropertyDescriptorsForExtension("lifecycleExtension");
@@ -239,7 +250,7 @@ public class PolicyManagerImpl implements PolicyManager, ApplicationContextAware
                                   Lifecycle lifecycle,
                                   Collection<Phase> phases, 
                                   Policy... policies)
-        throws RegistryException, ItemCollectionPolicyException {
+        throws RegistryException, PolicyException {
         try {
             q.add(OpRestriction.eq("enabled", true));
             SearchResults results = getRegistry().search(q);
@@ -254,7 +265,7 @@ public class PolicyManagerImpl implements PolicyManager, ApplicationContextAware
             }
             
             if (approvals.size() > 0) {
-                throw new ItemCollectionPolicyException(approvals);
+                throw new PolicyException(approvals);
             }
         } catch (QueryException e) {
             // this should never happen as we know our query is valid
@@ -263,7 +274,7 @@ public class PolicyManagerImpl implements PolicyManager, ApplicationContextAware
     }
 
     public void setActivePolicies(Lifecycle lifecycle, Policy... policies) 
-        throws RegistryException, ItemCollectionPolicyException {
+        throws RegistryException, PolicyException {
         
         // TODO don't hard code this
         Collection<PropertyDescriptor> pds = 
@@ -281,13 +292,13 @@ public class PolicyManagerImpl implements PolicyManager, ApplicationContextAware
     }
 
     public void setActivePolicies(Item item, Lifecycle lifecycle, Policy... policies) 
-        throws RegistryException, ItemCollectionPolicyException {
+        throws RegistryException, PolicyException {
         Map<Item, List<ApprovalMessage>> failures = new HashMap<Item, List<ApprovalMessage>>();
         
         approveItem(item, failures, lifecycle, policies);
         
         if (failures.size() > 0) {
-            throw new ItemCollectionPolicyException(failures);
+            throw new PolicyException(failures);
         }
         
         activatePolicy(itemsLifecyclesNodeId, policies, item.getId(), lifecycle.getId());

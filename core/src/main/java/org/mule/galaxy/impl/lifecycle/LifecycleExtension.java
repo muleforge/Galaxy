@@ -1,8 +1,6 @@
 package org.mule.galaxy.impl.lifecycle;
 
-import static org.mule.galaxy.util.AbderaUtils.assertNotEmpty;
-import static org.mule.galaxy.util.AbderaUtils.createArtifactPolicyExceptionResponse;
-import static org.mule.galaxy.util.AbderaUtils.throwMalformed;
+import static org.mule.galaxy.util.AbderaUtils.*;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -17,7 +15,10 @@ import org.apache.abdera.model.Element;
 import org.apache.abdera.model.Entry;
 import org.apache.abdera.protocol.server.context.ResponseContextException;
 import org.mule.galaxy.Item;
+import org.mule.galaxy.PropertyException;
 import org.mule.galaxy.Workspace;
+import org.mule.galaxy.event.EventManager;
+import org.mule.galaxy.event.LifecycleTransitionEvent;
 import org.mule.galaxy.extension.AtomExtension;
 import org.mule.galaxy.extension.Extension;
 import org.mule.galaxy.lifecycle.Lifecycle;
@@ -27,6 +28,7 @@ import org.mule.galaxy.lifecycle.TransitionException;
 import org.mule.galaxy.policy.PolicyException;
 import org.mule.galaxy.type.PropertyDescriptor;
 import org.mule.galaxy.util.Constants;
+import org.mule.galaxy.util.Message;
 import org.mule.galaxy.util.SecurityUtils;
 
 public class LifecycleExtension implements Extension, AtomExtension {
@@ -39,6 +41,7 @@ public class LifecycleExtension implements Extension, AtomExtension {
     
     private String id;
     private LifecycleManager lifecycleManager;
+    private EventManager eventManager;
     
     public Object getExternalValue(Item entry, PropertyDescriptor pd, Object storedValue) {
         if (storedValue == null) {
@@ -49,13 +52,38 @@ public class LifecycleExtension implements Extension, AtomExtension {
         return lifecycleManager.getPhaseById((String) ids.get(1));
     }
 
-    public Object getInternalValue(Item entry, PropertyDescriptor pd, Object value)
+    public Object getInternalValue(Item item, PropertyDescriptor pd, Object value)
             throws PolicyException {
         Phase phase = (Phase) value;
+
+        if (value == null) {
+            return null;
+        }
+        
+        if (!lifecycleManager.isTransitionAllowed(item, pd.getProperty(), phase)) {
+            throw new PolicyException(item, "Transition to phase " + phase + " is not allowed.");
+        }
+        
+        LifecycleTransitionEvent event = new LifecycleTransitionEvent(
+                item.getParent().getPath(),
+                "", 
+                phase.getName(), 
+                phase.getLifecycle().getName());
+        event.setUser(SecurityUtils.getCurrentUser());
+        eventManager.fireEvent(event);
         
         return Arrays.asList(phase.getLifecycle().getId(), phase.getId());
     }
     
+    public void validate(Item item, PropertyDescriptor pd, Object valueToStore) throws PolicyException {
+        Phase phase = (Phase) valueToStore;
+        
+        if (!lifecycleManager.isTransitionAllowed(item, pd.getProperty(), phase)) {
+            throw new PolicyException(item, "Transition to phase " + phase + " is not allowed.");
+        }
+        
+    }
+
     public void updateItem(Item item, Factory factory, Element e) throws ResponseContextException {
         String property = e.getAttributeValue("property");
         assertNotEmpty(property, "Lifecycle property attribute cannot be null.");
@@ -92,11 +120,11 @@ public class LifecycleExtension implements Extension, AtomExtension {
             throwMalformed("Lifecycle phase \"" + phaseName + "\" does not exist.");
         
         try {
-            lifecycleManager.transition(item, property, phase, SecurityUtils.getCurrentUser());
-        } catch (TransitionException e1) {
-            throwMalformed(e1.getMessage());
+            item.setProperty(property, phase);
         } catch (PolicyException e1) {
             throw createArtifactPolicyExceptionResponse(e1);
+        } catch (PropertyException e1) {
+            throw newErrorMessage(e1.getMessage(), e1.getMessage(), 500);
         }
     }
     
@@ -141,6 +169,10 @@ public class LifecycleExtension implements Extension, AtomExtension {
 
     public LifecycleManager getLifecycleManager() {
         return lifecycleManager;
+    }
+
+    public void setEventManager(EventManager eventManager) {
+        this.eventManager = eventManager;
     }
 
     public void setLifecycleManager(LifecycleManager lifecycleManager) {

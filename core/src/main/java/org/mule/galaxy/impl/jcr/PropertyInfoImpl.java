@@ -35,6 +35,10 @@ public class PropertyInfoImpl implements PropertyInfo {
         return item.getProperty(getName());
     }
 
+    public Object getInternalValue() {
+        return item.getInternalProperty(getName());
+    }
+
     public boolean isLocked() {
         Boolean b = JcrUtil.getBooleanOrNull(node, getName() + JcrVersion.LOCKED);
         if (b == null) {

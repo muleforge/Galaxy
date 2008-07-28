@@ -1,18 +1,15 @@
 package org.mule.galaxy.lifecycle;
 
 import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 import org.mule.galaxy.Artifact;
 import org.mule.galaxy.ArtifactVersion;
-import org.mule.galaxy.Dao;
 import org.mule.galaxy.DuplicateItemException;
-import org.mule.galaxy.EntryVersion;
 import org.mule.galaxy.NotFoundException;
 import org.mule.galaxy.Registry;
 import org.mule.galaxy.Workspace;
+import org.mule.galaxy.policy.PolicyException;
 import org.mule.galaxy.test.AbstractGalaxyTest;
 
 public class LifecycleManagerTest extends AbstractGalaxyTest {
@@ -57,33 +54,41 @@ public class LifecycleManagerTest extends AbstractGalaxyTest {
         Phase current = getPhase(version);
         assertEquals(created.getName(), current.getName());
         
-        lifecycleManager.transition(version, Registry.PRIMARY_LIFECYCLE, dev, getAdmin());
+        version.setProperty(Registry.PRIMARY_LIFECYCLE, dev);
         
         current = getPhase(version);
         assertEquals(dev.getName(), current.getName());
         
         try {
-            lifecycleManager.transition(version, Registry.PRIMARY_LIFECYCLE, dev, getAdmin());
+            version.setProperty(Registry.PRIMARY_LIFECYCLE, dev);
             fail("Expected Transition Exception");
-        } catch (TransitionException e) {
+        } catch (PolicyException e) {
             // expected
         }
         
         Phase next = l.getPhase("Tested");
-        lifecycleManager.transition(version, Registry.PRIMARY_LIFECYCLE, next, getAdmin());
+        version.setProperty(Registry.PRIMARY_LIFECYCLE, next);
         
         next = l.getPhase("Staged");
-        lifecycleManager.transition(version, Registry.PRIMARY_LIFECYCLE, next, getAdmin());
+        version.setProperty(Registry.PRIMARY_LIFECYCLE, next);
         
         next = l.getPhase("Production");
-        lifecycleManager.transition(version, Registry.PRIMARY_LIFECYCLE, next, getAdmin());
+        version.setProperty(Registry.PRIMARY_LIFECYCLE, next);
         
         next = l.getPhase("Retired");
-        lifecycleManager.transition(version, Registry.PRIMARY_LIFECYCLE, next, getAdmin());
+        version.setProperty(Registry.PRIMARY_LIFECYCLE, next);
         
         // try going back
         next = l.getPhase("Production");
-        lifecycleManager.transition(version, Registry.PRIMARY_LIFECYCLE, next, getAdmin());
+        version.setProperty(Registry.PRIMARY_LIFECYCLE, next);
+        
+        // Try an invalid phase by setting the internal value
+        try {
+            version.setProperty(Registry.PRIMARY_LIFECYCLE, dev);
+            fail("Expected Transition Exception");
+        } catch (PolicyException e) {
+            // expected
+        }
     }
 
     public void testInvalidSaves() throws Exception {    
@@ -157,8 +162,8 @@ public class LifecycleManagerTest extends AbstractGalaxyTest {
         
         lifecycleManager.delete(l.getId(), newLc.getId());
         
-        Workspace wkspc = (Workspace) registry.getItemByPath("Default Workspace");
-        Artifact artifact = registry.getArtifact(wkspc, "hello_world.wsdl");
+        // Workspace wkspc = (Workspace) registry.getItemByPath("Default Workspace");
+        // Artifact artifact = registry.getArtifact(wkspc, "hello_world.wsdl");
         // Doesn't work because the session state isn't persisted yet
 //        assertEquals(newLc.getId(), getPhase(artifact.getDefaultOrLastVersion()).getLifecycle().getId());
         

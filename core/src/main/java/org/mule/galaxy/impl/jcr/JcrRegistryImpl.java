@@ -178,8 +178,12 @@ public class JcrRegistryImpl extends JcrTemplate implements Registry, JcrRegistr
         });
     }
 
-    public void save(Workspace w) throws AccessException {
-        accessControlManager.assertAccess(Permission.MODIFY_WORKSPACE, w);
+    public void save(Item i) throws AccessException {
+        if (i instanceof Workspace) {
+            accessControlManager.assertAccess(Permission.MODIFY_WORKSPACE, i);
+        } else {
+            accessControlManager.assertAccess(Permission.MODIFY_ARTIFACT, i);
+        }
         
         execute(new JcrCallback() {
 
@@ -343,18 +347,38 @@ public class JcrRegistryImpl extends JcrTemplate implements Registry, JcrRegistr
         return getWorkspaceManager(itemId.substring(0, idx));
     }
 
-    public Item getRegistryItem(final String id) throws NotFoundException, RegistryException, AccessException {
+    public Item getItemById(final String id) throws NotFoundException, RegistryException, AccessException {
         return (Item) executeWithNotFound(new JcrCallback() {
             public Object doInJcr(Session session) throws IOException, RepositoryException {
                 Node node = session.getNodeByUUID(trimWorkspaceManagerId(id));
                 
                 try {
-                    if (node.getPrimaryNodeType().getName().equals("galaxy:artifact")) {
+                    String type = node.getPrimaryNodeType().getName();
+                    
+                    if (type.equals("galaxy:artifact")) {
                         Artifact a = buildArtifact(node);
     
                         accessControlManager.assertAccess(Permission.READ_ARTIFACT, a);
                         
                         return a;
+                    } else if (type.equals("galaxy:artifactVersion")) {
+                        Artifact a = buildArtifact(node.getParent());
+    
+                        accessControlManager.assertAccess(Permission.READ_ARTIFACT, a);
+                        
+                        return a.getVersion(node.getName());
+                    } else if (type.equals("galaxy:entry")) {
+                        Entry a = buildEntry(node);
+    
+                        accessControlManager.assertAccess(Permission.READ_ARTIFACT, a);
+                        
+                        return a;
+                    } else if (type.equals("galaxy:entryVersion")) {
+                        Entry a = buildEntry(node);
+    
+                        accessControlManager.assertAccess(Permission.READ_ARTIFACT, a);
+                        
+                        return a.getVersion(node.getName());
                     } else {
                          Workspace wkspc = buildWorkspace(node);
                          
@@ -547,18 +571,6 @@ public class JcrRegistryImpl extends JcrTemplate implements Registry, JcrRegistr
         }
     }
     
-    public void save(Artifact artifact) throws RegistryException, AccessException {
-        accessControlManager.assertAccess(Permission.MODIFY_ARTIFACT, artifact);
-        
-        execute(new JcrCallback() {
-            public Object doInJcr(Session session) throws IOException, RepositoryException {
-                // TODO: Fix artifact saving, we should have to call artifact.save().
-                session.save();
-                return null;
-            }
-        });
-    }
-
     public void move(final Artifact artifact, final String newWorkspaceId, final String newName) throws RegistryException, AccessException, NotFoundException {
         boolean wasRenamed = false;
         boolean wasMoved = false;
@@ -567,7 +579,6 @@ public class JcrRegistryImpl extends JcrTemplate implements Registry, JcrRegistr
         try {
             // handle artifact renaming
             accessControlManager.assertAccess(Permission.MODIFY_ARTIFACT, artifact);
-
 
             if (!artifact.getName().equals(newName)) {
                 // save only if name changed

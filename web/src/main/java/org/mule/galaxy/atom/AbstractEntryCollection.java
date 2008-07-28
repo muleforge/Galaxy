@@ -76,6 +76,7 @@ import org.mule.galaxy.policy.PolicyException;
 import org.mule.galaxy.security.AccessException;
 import org.mule.galaxy.security.User;
 import org.mule.galaxy.type.PropertyDescriptor;
+import org.mule.galaxy.util.AbderaUtils;
 import org.mule.galaxy.util.SecurityUtils;
 
 public abstract class AbstractEntryCollection 
@@ -242,48 +243,12 @@ public abstract class AbstractEntryCollection
         } catch (MimeTypeParseException e) {
             throw new ResponseContextException(500, e);
         } catch (PolicyException e) {
-            throw createArtifactPolicyExceptionResponse(e);
+            throw AbderaUtils.createArtifactPolicyExceptionResponse(e);
         } catch (AccessException e) {
             throw new ResponseContextException(401, e);
         }
     }
-
-    protected ResponseContextException createArtifactPolicyExceptionResponse(PolicyException e) {
-        final StringBuilder s = new StringBuilder();
-        s.append("<html><head><title>Artifact Policy Failure</title></head><body>");
-        
-        List<ApprovalMessage> approvals = e.getApprovals();
-        
-        for (ApprovalMessage m : approvals) {
-            if (m.isWarning()) {
-                s.append("<div class=\"warning\">");
-            } else {
-                s.append("<div class=\"failure\">");
-            }
-            
-            s.append(m.getMessage());
-            s.append("</div>");
-        }
-        
-        s.append("</body></html>");
-        SimpleResponseContext rc = new SimpleResponseContext() {
-            @Override
-            protected void writeEntity(Writer writer) throws IOException {
-                writer.write(s.toString());
-                writer.flush();
-            }
-
-            public boolean hasEntity() {
-                return true;
-            }
-        };
-        rc.setContentType("application/xhtml");
-        // bad request code
-        rc.setStatus(400);
-        
-        return new ResponseContextException(rc);
-    }
-
+    
     protected User getUser() {
         return SecurityUtils.getCurrentUser();
     }
@@ -411,7 +376,7 @@ public abstract class AbstractEntryCollection
         } catch (RegistryException e) {
             throw new ResponseContextException(500, e);
         } catch (PolicyException e) {
-            throw createArtifactPolicyExceptionResponse(e);
+            throw AbderaUtils.createArtifactPolicyExceptionResponse(e);
         }
     }
 

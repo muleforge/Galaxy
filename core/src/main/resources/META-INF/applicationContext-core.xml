@@ -195,6 +195,7 @@
   
   <bean id="lifecycleExtension" class="org.mule.galaxy.impl.lifecycle.LifecycleExtension">
     <property name="lifecycleManager" ref="lifecycleManager"/>
+    <property name="eventManager" ref="eventManager"/>
     <property name="id" value="lifecycleExtension"/>
   </bean>
   

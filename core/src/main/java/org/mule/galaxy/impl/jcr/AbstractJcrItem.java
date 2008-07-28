@@ -104,21 +104,45 @@ public abstract class AbstractJcrItem implements Item {
             throw new RuntimeException(e);
         }
     }
+    
     public void setProperty(String name, Object value) throws PropertyException, PolicyException {
         try {
             if (name.contains(" ")) {
                 throw new PropertyException(new Message("SPACE_NOT_ALLOWED", getBundle()));
             }
             
-            if (value == null) {
-                propertyCache.remove(name);
-            } else {
-                propertyCache.put(name, value);
-            }
+            Object origValue = value;
             PropertyDescriptor pd = getManager().getTypeManager().getPropertyDescriptorByName(name);
             if (pd != null && pd.getExtension() != null) {
         	value = pd.getExtension().getInternalValue(this, pd, value);
     	    }
+            JcrUtil.setProperty(name, value, node);
+            
+            if (value == null) {
+                deleteProperty(name);
+                propertyCache.remove(name);
+            } else {
+                ensureProperty(name);
+                propertyCache.put(name, origValue);
+            }
+
+            final String message = MessageFormat.format("Property {0} of {1} was set to: {2}", name, getPath(), value);
+            manager.getActivityManager().logActivity(SecurityUtils.getCurrentUser(),
+                                                     message, EventType.INFO);
+            update();
+        } catch (RepositoryException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public void setInternalProperty(String name, Object value) throws PropertyException, PolicyException {
+        try {
+            if (name.contains(" ")) {
+                throw new PropertyException(new Message("SPACE_NOT_ALLOWED", getBundle()));
+            }
+            
+            propertyCache.remove(name);
+            
             JcrUtil.setProperty(name, value, node);
             
             if (value == null) {
@@ -209,6 +233,10 @@ public abstract class AbstractJcrItem implements Item {
 	    value = pd.getExtension().getExternalValue(this, pd, value);
 	}
         return value;
+    }
+
+    public Object getInternalProperty(String name) {
+        return JcrUtil.getProperty(name, node);
     }
 
     public Iterator<PropertyInfo> getProperties() {

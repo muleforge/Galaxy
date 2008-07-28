@@ -71,6 +71,9 @@ public class IdentifiableExtension<T extends Identifiable> implements Extension 
 	}
     }
 
+    public void validate(Item entry, PropertyDescriptor pd, Object valueToStore) throws PolicyException {
+    }
+
     public boolean isMultivalueSupported() {
         return true;
     }

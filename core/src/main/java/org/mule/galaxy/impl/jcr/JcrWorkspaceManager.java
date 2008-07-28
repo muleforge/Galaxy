@@ -8,6 +8,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import javax.activation.MimeType;
@@ -36,7 +37,7 @@ import org.apache.jackrabbit.util.ISO9075;
 import org.mule.galaxy.Artifact;
 import org.mule.galaxy.ArtifactType;
 import org.mule.galaxy.ArtifactTypeDao;
-import org.mule.galaxy.ArtifactVersion;
+import org.mule.galaxy.EntryVersion;
 import org.mule.galaxy.ContentHandler;
 import org.mule.galaxy.ContentService;
 import org.mule.galaxy.Dao;
@@ -424,7 +425,7 @@ public class JcrWorkspaceManager extends JcrTemplate implements WorkspaceManager
                 
                 copyProperties(previousNode, versionNode);
                 
-                List<ApprovalMessage> approvals = approve(next);
+                Map<Item, List<ApprovalMessage>> approvals = approve(next);
 
                 session.save();
 
@@ -658,6 +659,14 @@ public class JcrWorkspaceManager extends JcrTemplate implements WorkspaceManager
         return ch.read(inputStream, workspace);
     }
 
+    protected Map<Item, List<ApprovalMessage>> approve(Item item) {
+        try {
+            return policyManager.approve(item);
+        } catch (PolicyException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     public EntryResult newEntry(final Workspace workspace, final String name, final String versionLabel)
         throws RegistryException, PolicyException, DuplicateItemException {
         
@@ -717,7 +726,7 @@ public class JcrWorkspaceManager extends JcrTemplate implements WorkspaceManager
                     log.debug("Created artifact " + entry.getId());
                 }
 
-                List<ApprovalMessage> approvals = approve(version);
+                Map<Item, List<ApprovalMessage>> approvals = approve(version);
 
                 // save this so the indexer will work
                 session.save();
@@ -740,7 +749,7 @@ public class JcrWorkspaceManager extends JcrTemplate implements WorkspaceManager
                                 JcrVersion next,
                                 User user)
         throws RegistryException, RepositoryException {
-        List<ApprovalMessage> approvals = approve(next);
+        Map<Item, List<ApprovalMessage>> approvals = approve(next);
 
         // save this so the indexer will work
         session.save();
@@ -752,23 +761,6 @@ public class JcrWorkspaceManager extends JcrTemplate implements WorkspaceManager
         session.save();
         
         return new EntryResult(artifact, next, approvals);
-    }
-
-    private List<ApprovalMessage> approve(EntryVersion next) {
-        boolean approved = true;
-        
-        List<ApprovalMessage> approvals = policyManager.approve(next);
-        for (ApprovalMessage a : approvals) {
-            if (!a.isWarning()) {
-                approved = false;
-                break;
-            }
-        }
-        
-        if (!approved) {
-            throw new RuntimeException(new PolicyException(approvals));
-        }
-        return approvals;
     }
 
     protected String escapeNodeName(String right) {
@@ -785,40 +777,32 @@ public class JcrWorkspaceManager extends JcrTemplate implements WorkspaceManager
     
 
     public void delete(Item item) throws RegistryException, AccessException {
-        if (item instanceof ArtifactVersion) {
-            delete((ArtifactVersion) item);
-        } else
-            if (item instanceof Artifact) {
-                delete((Artifact) item);
-            } else
-                if (item instanceof Workspace) {
-                    delete((Workspace) item);
-                } else
-                    if (item instanceof Entry) {
-                        //delete((ArtifactVersion) item);
-                    } else
-                        if (item instanceof EntryVersion) {
-                            //delete((ArtifactVersion) item);
-                        }
+        if (item instanceof EntryVersion) {
+            delete((EntryVersion)item);
+        } else if (item instanceof Entry) {
+            delete((Entry)item);
+        } else if (item instanceof Workspace) {
+            delete((Workspace)item);
+        }
     }
 
-    public void delete(final ArtifactVersion version) throws RegistryException, AccessException {
+    public void delete(final EntryVersion version) throws RegistryException, AccessException {
         accessControlManager.assertAccess(Permission.DELETE_ARTIFACT, version.getParent());
 
         executeWithRegistryException(new JcrCallback() {
             public Object doInJcr(Session session) throws IOException, RepositoryException {
                 try {
-                    Artifact artifact = (Artifact) version.getParent();
+                    Entry entry = version.getParent();
 
-                    if (artifact.getVersions().size() == 1) {
-                        delete(artifact);
+                    if (entry.getVersions().size() == 1) {
+                        delete(entry);
                         return null;
                     }
                     
-                    artifact.getVersions().remove(version);
+                    entry.getVersions().remove(version);
                     
                     if (((JcrVersion)version).isLatest()) {
-                        JcrVersion newLatest = (JcrVersion) artifact.getVersions().get(0);
+                        JcrVersion newLatest = (JcrVersion) entry.getVersions().get(0);
                         
                         newLatest.setLatest(true);
                     }
@@ -827,7 +811,7 @@ public class JcrWorkspaceManager extends JcrTemplate implements WorkspaceManager
     
                     ((JcrVersion) version).getNode().remove();
 
-                    final String path = artifact.getPath();
+                    final String path = entry.getPath();
     
                     session.save();
 
@@ -846,13 +830,13 @@ public class JcrWorkspaceManager extends JcrTemplate implements WorkspaceManager
         });
     }
 
-    public void delete(final Artifact artifact) throws RegistryException, AccessException {
-        accessControlManager.assertAccess(Permission.DELETE_ARTIFACT, artifact);
+    public void delete(final Entry entry) throws RegistryException, AccessException {
+        accessControlManager.assertAccess(Permission.DELETE_ARTIFACT, entry);
 
         executeWithRegistryException(new JcrCallback() {
             public Object doInJcr(Session session) throws IOException, RepositoryException {
-                String path = artifact.getPath();
-                ((JcrArtifact) artifact).getNode().remove();
+                String path = entry.getPath();
+                ((JcrEntry) entry).getNode().remove();
 
                 session.save();
 
@@ -871,8 +855,8 @@ public class JcrWorkspaceManager extends JcrTemplate implements WorkspaceManager
         executeWithPolicy(new JcrCallback() {
             public Object doInJcr(Session session) throws IOException, RepositoryException {
                 
-                if (enabled && version instanceof ArtifactVersion) {
-                    approve((ArtifactVersion) version);
+                if (enabled && version instanceof EntryVersion) {
+                    approve((EntryVersion) version);
                 }
                 
                 ((JcrVersion) version).setEnabledInternal(enabled);

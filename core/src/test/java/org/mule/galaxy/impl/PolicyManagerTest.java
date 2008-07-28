@@ -13,7 +13,7 @@ import org.mule.galaxy.Workspace;
 import org.mule.galaxy.lifecycle.Lifecycle;
 import org.mule.galaxy.lifecycle.Phase;
 import org.mule.galaxy.policy.ApprovalMessage;
-import org.mule.galaxy.policy.ItemCollectionPolicyException;
+import org.mule.galaxy.policy.PolicyException;
 import org.mule.galaxy.policy.Policy;
 import org.mule.galaxy.policy.PolicyInfo;
 import org.mule.galaxy.test.AbstractGalaxyTest;
@@ -33,7 +33,7 @@ public class PolicyManagerTest extends AbstractGalaxyTest {
         try {
             policyManager.setActivePolicies(workspace, lifecycle, failPolicy);
             fail("Expected policy failure.");
-        } catch (ItemCollectionPolicyException e) {
+        } catch (PolicyException e) {
             Map<Item, List<ApprovalMessage>> policyFailures = e.getPolicyFailures();
             
             // fails once for the artifact and once for the artifact version
@@ -49,7 +49,7 @@ public class PolicyManagerTest extends AbstractGalaxyTest {
         try {
             policyManager.setActivePolicies(lifecycle, failPolicy);
             fail("Expected policy failure.");
-        } catch (ItemCollectionPolicyException e) {
+        } catch (PolicyException e) {
             Map<Item, List<ApprovalMessage>> policyFailures = e.getPolicyFailures();
             
             assertEquals(2, policyFailures.size());
@@ -67,7 +67,7 @@ public class PolicyManagerTest extends AbstractGalaxyTest {
             
             policyManager.setActivePolicies(Arrays.asList(lifecycle.getInitialPhase()), failPolicy);
             fail("Expected policy failure.");
-        } catch (ItemCollectionPolicyException e) {
+        } catch (PolicyException e) {
             Map<Item, List<ApprovalMessage>> policyFailures = e.getPolicyFailures();
             
             assertEquals(2, policyFailures.size());

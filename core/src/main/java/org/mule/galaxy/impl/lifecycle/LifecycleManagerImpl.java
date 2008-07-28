@@ -39,7 +39,6 @@ import org.mule.galaxy.policy.ApprovalMessage;
 import org.mule.galaxy.policy.Policy;
 import org.mule.galaxy.policy.PolicyException;
 import org.mule.galaxy.policy.PolicyManager;
-import org.mule.galaxy.security.User;
 import org.mule.galaxy.util.BundleUtils;
 import org.mule.galaxy.util.Message;
 import org.mule.galaxy.util.SecurityUtils;
@@ -221,8 +220,7 @@ public class LifecycleManagerImpl extends AbstractDao<Lifecycle>
     
     public void transition(final Item item, 
                            final String property, 
-                           final Phase p, 
-                           final User user) throws TransitionException, PolicyException {
+                           final Phase p) throws TransitionException, PolicyException {
         if (!isTransitionAllowed(item, property, p)) {
             throw new TransitionException(p);
         }
@@ -238,28 +236,10 @@ public class LifecycleManagerImpl extends AbstractDao<Lifecycle>
                     throw new RuntimeException(e);
                 }
 
-                boolean approved = true;
-                List<ApprovalMessage> approvals = getPolicyManager().approve(item);
-                for (ApprovalMessage app : approvals) {
-                    if (!app.isWarning()) {
-                        approved = false;
-                        break;
-                    }
-                }
-                
-                if (!approved) {
-                   
-                }
-
                 //final String previousPhase = previous.getPhase().getName();
 
                 session.save();
 
-                LifecycleTransitionEvent event = new LifecycleTransitionEvent(
-                        item.getParent().getPath(),
-                        "", p.getName(), p.getLifecycle().getName());
-                event.setUser(SecurityUtils.getCurrentUser());
-                eventManager.fireEvent(event);
                                             
                 return null;
             }

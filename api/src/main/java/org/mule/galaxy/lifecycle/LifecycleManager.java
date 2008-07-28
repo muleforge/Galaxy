@@ -6,7 +6,6 @@ import org.mule.galaxy.DuplicateItemException;
 import org.mule.galaxy.Item;
 import org.mule.galaxy.NotFoundException;
 import org.mule.galaxy.policy.PolicyException;
-import org.mule.galaxy.security.User;
 
 public interface LifecycleManager {
     
@@ -17,10 +16,7 @@ public interface LifecycleManager {
     void setDefaultLifecycle(Lifecycle l);
     
     boolean isTransitionAllowed(Item item, String property, Phase p);
-    
-    void transition(Item item, String property, Phase p, User user) 
-        throws TransitionException, PolicyException;
-    
+
     Lifecycle getLifecycle(String lifecycleName);
 
     Lifecycle getLifecycleById(String id);
