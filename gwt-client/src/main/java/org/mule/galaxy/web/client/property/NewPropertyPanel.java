@@ -55,6 +55,7 @@ public class NewPropertyPanel extends Composite {
     private TextBox idTextBox;
     private TextBox descTextBox;
     private Panel propertiesPanel;
+    private ClickListener cancelListener;
 
     public NewPropertyPanel(final ErrorPanel registryPanel, 
                              final RegistryServiceAsync registryService,
@@ -97,30 +98,21 @@ public class NewPropertyPanel extends Composite {
                 initProperties((List) o);
             }
         });
-        
-        valueTextBox = new TextBox();
-        valueTextBox.setVisibleLength(40);
-        panel.add(valueTextBox);
-        
-        final NewPropertyPanel editPanel = this;
-        Button saveButton = new Button("Save");
-        saveButton.addClickListener(new ClickListener() {
+
+        cancelListener = new ClickListener() {
             public void onClick(Widget arg0) {
-                saveProperty();
+                cancel();
             }
-        });
-        panel.add(saveButton);
-        
+        };
         Button cancelButton = new Button("Cancel");
-        cancelButton.addClickListener(new ClickListener() {
-            public void onClick(Widget arg0) {
-                propertiesPanel.remove(editPanel);
-                newPropertyTable = null;
-            }
-        });
+        cancelButton.addClickListener(cancelListener);
         panel.add(cancelButton);
         
         initWidget(panel);
+    }
+    
+    private void cancel() {
+        newPropertyTable = null;
     }
 
     protected void saveProperty() {

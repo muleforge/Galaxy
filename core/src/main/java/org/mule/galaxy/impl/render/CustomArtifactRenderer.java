@@ -38,16 +38,6 @@ public class CustomArtifactRenderer implements ArtifactRenderer {
                 return ((Artifact) artifact).getDefaultOrLastVersion().getVersionLabel();
             }
         }));
-        columns.add(new Column("Phase", true, false, new ColumnEvaluator() {
-            public Object getValue(Object artifact) {
-                EntryVersion ev = ((Artifact) artifact).getDefaultOrLastVersion();
-                Phase p = (Phase) ev.getProperty(Registry.PRIMARY_LIFECYCLE);
-                if (p != null)
-                    return p.getName();
-                
-                return "";
-            }
-        }));
     }
 
     public List<Column> getColumns() {

@@ -12,8 +12,7 @@ public class DefaultArtifactRenderer implements ArtifactRenderer {
         return new String [] {
           "Name",
           "Workspace",
-          "Version",
-          "Phase"
+          "Version"
         };
     }
 
@@ -25,10 +24,6 @@ public class DefaultArtifactRenderer implements ArtifactRenderer {
             return row.getParent().getPath();
         case 2:
             return row.getDefaultOrLastVersion().getVersionLabel();
-        case 3:
-            EntryVersion ev = row.getDefaultOrLastVersion();
-            Phase p = (Phase) ev.getProperty(Registry.PRIMARY_LIFECYCLE);
-            return p != null ? p.getName() : "-";
         }
         
         return null;
