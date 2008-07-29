@@ -19,7 +19,6 @@ import javax.jcr.PathNotFoundException;
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
 
-import org.mule.galaxy.ArtifactVersion;
 import org.mule.galaxy.Entry;
 import org.mule.galaxy.EntryVersion;
 import org.mule.galaxy.Item;
@@ -32,8 +31,9 @@ import org.mule.galaxy.impl.lifecycle.LifecycleExtension;
 import org.mule.galaxy.lifecycle.Lifecycle;
 import org.mule.galaxy.lifecycle.Phase;
 import org.mule.galaxy.policy.ApprovalMessage;
-import org.mule.galaxy.policy.PolicyException;
 import org.mule.galaxy.policy.Policy;
+import org.mule.galaxy.policy.PolicyException;
+import org.mule.galaxy.policy.PolicyInfo;
 import org.mule.galaxy.policy.PolicyManager;
 import org.mule.galaxy.query.OpRestriction;
 import org.mule.galaxy.query.QueryException;
@@ -96,7 +96,7 @@ public class PolicyManagerImpl implements PolicyManager, ApplicationContextAware
     public Map<Item, List<ApprovalMessage>> approve(Item item) throws PolicyException {
         Map<Item, List<ApprovalMessage>> failures = new HashMap<Item, List<ApprovalMessage>>();
         
-        approveItem(item, failures, (Collection<Phase>) null, getActivePolicies(item).toArray(new Policy[0]));
+        approveItem(item, failures, getActivePolicies(item));
         
         boolean approved = true;
         for (List<ApprovalMessage> msgs : failures.values()) {
@@ -129,7 +129,7 @@ public class PolicyManagerImpl implements PolicyManager, ApplicationContextAware
         
         Map<Item, List<ApprovalMessage>> failures = new HashMap<Item, List<ApprovalMessage>>();
         
-        approveItem(item, failures, phases, policies);
+        approveItem(item, failures, null, phases, policies);
         
         if (failures.size() > 0) {
             throw new PolicyException(failures);
@@ -140,69 +140,90 @@ public class PolicyManagerImpl implements PolicyManager, ApplicationContextAware
 
     private void approveItem(Item item, 
                              Map<Item, List<ApprovalMessage>> failures, 
+                             Lifecycle lifecycle,
                              Collection<Phase> phases, 
                              Policy... policies) 
         throws PolicyException {
+
+        approve(item, item, failures, lifecycle, phases, policies);
         
-        for (Iterator<PropertyInfo> itr = item.getProperties(); itr.hasNext();) {
+        if (item instanceof Workspace) {
+            for (Item i : ((Workspace) item).getItems()) {
+                approveItem(i, failures, lifecycle, phases, policies);
+            }
+        } else if (item instanceof Entry) {
+            for (EntryVersion v : ((Entry) item).getVersions()) {
+                approveItem((EntryVersion)v, failures, lifecycle,phases, policies);
+            }
+        } else if (item instanceof EntryVersion) {
+            // if the parent entry has a lifecycle, try that too
+            approve(item, item.getParent(), failures, lifecycle, phases, policies);
+        }
+    }
+
+    private void approve(Item itemToApprove, Item itemWithLifecycle,
+                         Map<Item, List<ApprovalMessage>> failures, 
+                         Lifecycle lifecycle,
+                         Collection<Phase> phases,
+                         Policy... policies) {
+        for (Iterator<PropertyInfo> itr = itemWithLifecycle.getProperties(); itr.hasNext();) {
             PropertyInfo pi = (PropertyInfo) itr.next();
             PropertyDescriptor pd = pi.getPropertyDescriptor();
             if (pd != null && pd.getExtension() instanceof LifecycleExtension) {
                 Phase p = (Phase) pi.getValue();
 
-                if (phases != null && phases.contains(p)) {
-                    List<ApprovalMessage> messages = approve(item, policies);
+                if (phases != null && phases.contains(p) || lifecycle != null && lifecycle.equals(p.getLifecycle())) {
+                    List<ApprovalMessage> messages = approve(itemToApprove, policies);
                     
                     if (messages != null && messages.size() > 0) {
-                        failures.put(item, messages);
+                        failures.put(itemToApprove, messages);
                     }
                 }
-            }
-        }
-        
-        if (item instanceof Workspace) {
-            for (Item i : ((Workspace) item).getItems()) {
-                approveItem(i, failures, phases, policies);
-            }
-        } else if (item instanceof Entry) {
-            for (EntryVersion v : ((Entry) item).getVersions()) {
-                approveItem((EntryVersion)v, failures, phases, policies);
             }
         }
     }
 
     private void approveItem(Item item, 
-                             Map<Item, List<ApprovalMessage>> failures, 
-                             Lifecycle lifecycle, 
-                             Policy... policies) 
-        throws PolicyException {
+                             Map<Item, List<ApprovalMessage>> failures,
+                             Collection<PolicyInfo> activePolicies) {
+        approve(item, item, failures, activePolicies);
         
-        for (Iterator<PropertyInfo> itr = item.getProperties(); itr.hasNext();) {
+        if (item instanceof Workspace) {
+            for (Item i : ((Workspace) item).getItems()) {
+                approveItem(i, failures, activePolicies);
+            }
+        } else if (item instanceof Entry) {
+            for (EntryVersion v : ((Entry) item).getVersions()) {
+                approveItem((EntryVersion)v, failures, activePolicies);
+            }
+        } else if (item instanceof EntryVersion) {
+            // if the parent entry has a lifecycle, try that too
+            approve(item, item.getParent(), failures, activePolicies);
+        }
+    }
+
+    private void approve(Item itemToApprove, 
+                         Item itemWithLifecycle,
+                         Map<Item, List<ApprovalMessage>> failures, 
+                         Collection<PolicyInfo> pis) {
+        for (Iterator<PropertyInfo> itr = itemWithLifecycle.getProperties(); itr.hasNext();) {
             PropertyInfo pi = (PropertyInfo) itr.next();
-            if (pi.getPropertyDescriptor().getExtension() instanceof LifecycleExtension) {
+            PropertyDescriptor pd = pi.getPropertyDescriptor();
+            if (pd != null && pd.getExtension() instanceof LifecycleExtension) {
                 Phase p = (Phase) pi.getValue();
 
-                if (lifecycle.equals(p.getLifecycle())) {
-                    List<ApprovalMessage> messages = approve(item, policies);
-                    
-                    if (messages != null && messages.size() > 0) {
-                        failures.put(item, messages);
+                for (PolicyInfo policyInfo : pis) {
+                    if (policyInfo.appliesTo(p)) {
+                        List<ApprovalMessage> messages = approve(itemToApprove, policyInfo.getPolicy());
+                        
+                        if (messages != null && messages.size() > 0) {
+                            failures.put(itemToApprove, messages);
+                        }
                     }
                 }
             }
         }
-        
-        if (item instanceof Workspace) {
-            for (Item i : ((Workspace) item).getItems()) {
-                approveItem(i, failures, lifecycle, policies);
-            }
-        } else if (item instanceof Entry) {
-            for (EntryVersion v : ((Entry) item).getVersions()) {
-                approveItem((EntryVersion)v, failures, lifecycle, policies);
-            }
-        }
     }
-
     private List<ApprovalMessage> approve(Item item, Policy... policies) {
         List<ApprovalMessage> messages = null;
         for (Policy p : policies) {
@@ -257,11 +278,7 @@ public class PolicyManagerImpl implements PolicyManager, ApplicationContextAware
             Map<Item, List<ApprovalMessage>> approvals = new HashMap<Item, List<ApprovalMessage>>();
             
             for (Object o : results.getResults()) {
-                if (lifecycle != null) {
-                    approveItem((Item) o, approvals, lifecycle, policies);
-                } else {
-                    approveItem((Item) o, approvals, phases, policies);
-                }
+                approveItem((Item) o, approvals, lifecycle, phases, policies);
             }
             
             if (approvals.size() > 0) {
@@ -295,7 +312,7 @@ public class PolicyManagerImpl implements PolicyManager, ApplicationContextAware
         throws RegistryException, PolicyException {
         Map<Item, List<ApprovalMessage>> failures = new HashMap<Item, List<ApprovalMessage>>();
         
-        approveItem(item, failures, lifecycle, policies);
+        approveItem(item, failures, lifecycle, null, policies);
         
         if (failures.size() > 0) {
             throw new PolicyException(failures);
@@ -401,26 +418,16 @@ public class PolicyManagerImpl implements PolicyManager, ApplicationContextAware
         return activePolicies;
     }
 
-    public Collection<Policy> getActivePolicies(final Item item, final Lifecycle lifecycle, final boolean includeInherited) {
+    public Collection<Policy> getActivePolicies(final Item item, final Lifecycle lifecycle) {
         final Set<Policy> activePolicies = new HashSet<Policy>();
         jcrTemplate.execute(new JcrCallback() {
             public Object doInJcr(Session session) throws IOException, RepositoryException {
                 // Add policies which apply to the lifecycle
-                addPolicies(activePolicies, session, 
-                            lifecyclesNodeId, lifecycle.getId());
-                
-                addPolicies(activePolicies, session, itemsLifecyclesNodeId, 
-                            item.getId(), lifecycle.getId());
-                
-                if (includeInherited) {
-                    Item policyItem = item.getParent();
-                    while (policyItem != null) {
-                        // Add policies which apply to this item and lifecycle
-                        
-                        
-                        policyItem = policyItem.getParent();
-                    }
-                }
+                activePolicies.addAll(getPolicies(session, lifecyclesNodeId, lifecycle.getId()));
+
+                activePolicies.addAll(getPolicies(session, itemsLifecyclesNodeId, item.getId(), lifecycle
+                    .getId()));
+
                 return null;
             }
 
@@ -428,36 +435,16 @@ public class PolicyManagerImpl implements PolicyManager, ApplicationContextAware
         return activePolicies;
     }
 
-    public Collection<Policy> getActivePolicies(final Item item, final Phase phase, final boolean includeInherited) {
+    public Collection<Policy> getActivePolicies(final Item item, final Phase phase) {
         final Set<Policy> activePolicies = new HashSet<Policy>();
         jcrTemplate.execute(new JcrCallback() {
             public Object doInJcr(Session session) throws IOException, RepositoryException {
                 // Add policies which apply to the phase
-                addPolicies(activePolicies, session, 
-                            phasesNodeId, phase.getId());
-                
-                // Add policies which apply to this item and phase
-                addPolicies(activePolicies, session, itemsPhasesNodeId, 
-                            item.getId(), phase.getId());
-                
-                if (includeInherited) {
-                    Lifecycle lifecycle = phase.getLifecycle();
-                    
-                    // Add policies which apply to the lifecycle
-                    addPolicies(activePolicies, session, 
-                                lifecyclesNodeId, lifecycle.getId());
+                activePolicies.addAll(getPolicies(session, phasesNodeId, phase.getId()));
 
-                    // Add policies which apply to this item and lifecycle
-                    addPolicies(activePolicies, session, itemsLifecyclesNodeId, 
-                                item.getId(), lifecycle.getId());
-                    
-                    Item policyItem = item.getParent();
-                    while (policyItem != null) {
-                        addPoliciesForItem(activePolicies, policyItem, session, phase, lifecycle);
-                        
-                        policyItem = policyItem.getParent();
-                    }
-                }
+                // Add policies which apply to this item and phase
+                activePolicies.addAll(getPolicies(session, itemsPhasesNodeId, item.getId(), phase.getId()));
+
                 return null;
             }
 
@@ -465,13 +452,8 @@ public class PolicyManagerImpl implements PolicyManager, ApplicationContextAware
         return activePolicies;
     }
 
-    public Collection<Policy> getActivePolicies(final Item item) {
-        return getActivePolicies(item, true);
-    }
-
-    public Collection<Policy> getActivePolicies(final Item item, 
-                                                final boolean includeInherited) {
-        final Set<Policy> activePolicies = new HashSet<Policy>();
+    public Collection<PolicyInfo> getActivePolicies(final Item item) {
+        final Set<PolicyInfo> activePolicies = new HashSet<PolicyInfo>();
         jcrTemplate.execute(new JcrCallback() {
             public Object doInJcr(Session session) throws IOException, RepositoryException {
                 for (Iterator<PropertyInfo> itr = item.getProperties(); itr.hasNext();) {
@@ -482,21 +464,28 @@ public class PolicyManagerImpl implements PolicyManager, ApplicationContextAware
                         Lifecycle lifecycle = phase.getLifecycle();
                         
                         // Add policies which apply to the lifecycle
-                        addPolicies(activePolicies, session, 
-                                    lifecyclesNodeId, lifecycle.getId());
+                        add(activePolicies, 
+                            getPolicies(session, lifecyclesNodeId, lifecycle.getId()),
+                            lifecycle);
                         
                         // Add policies which apply to the phase
-                        addPolicies(activePolicies, session, 
-                                    phasesNodeId, phase.getId());
+                        add(activePolicies,
+                            getPolicies(session, phasesNodeId, phase.getId()),
+                            phase);
                         
                         // Loop through the item and it's parents and apply the policies.
-                        if (includeInherited) {
-                            Item policyItem = item;
-                            while (policyItem != null) {
-                                addPoliciesForItem(activePolicies, policyItem, session, phase, lifecycle);
+                        Item policyItem = item;
+                        while (policyItem != null) {
+                            add(activePolicies,
+                                getPolicies(session, itemsLifecyclesNodeId, policyItem.getId(), lifecycle.getId()),
+                                lifecycle);
+                            
+                            // Add policies which apply to this item and lifecycle
+                            add(activePolicies,
+                                getPolicies(session, itemsPhasesNodeId, policyItem.getId(), phase.getId()),
+                                phase);
                                 
-                                policyItem = policyItem.getParent();
-                            }
+                            policyItem = policyItem.getParent();
                         }
                     }
                 }
@@ -508,22 +497,26 @@ public class PolicyManagerImpl implements PolicyManager, ApplicationContextAware
         return activePolicies;
     }
 
+    protected void add(Set<PolicyInfo> activePolicies, Collection<Policy> policies2, Object appliesTo) {
+        for (Policy p : policies2) {
+            activePolicies.add(new PolicyInfo(p, appliesTo));
+        }
+    }
+
     protected void addPoliciesForItem(final Set<Policy> activePolicies, final Item item,
                                     Session session, Phase phase, Lifecycle lifecycle)
         throws ItemNotFoundException, RepositoryException {
         // Add policies which apply to this item and lifecycle
-        addPolicies(activePolicies, session, itemsLifecyclesNodeId, 
-                    item.getId(), lifecycle.getId());
+        activePolicies.addAll(getPolicies(session, itemsLifecyclesNodeId, item.getId(), lifecycle.getId()));
         
         // Add policies which apply to this item and lifecycle
-        addPolicies(activePolicies, session, itemsPhasesNodeId, 
-                    item.getId(), phase.getId());
+        activePolicies.addAll(getPolicies(session, itemsPhasesNodeId, item.getId(), phase.getId()));
     }
     
-    protected void addPolicies(final Set<Policy> activePolicies,
-                             final Session session,
-                             final String rootNodeId,
-                             String... nodeIds) throws ItemNotFoundException, RepositoryException {
+    protected Collection<Policy> getPolicies(final Session session,
+                                             final String rootNodeId,
+                                             String... nodeIds) throws ItemNotFoundException, RepositoryException {
+        HashSet<Policy> activePolicies = new HashSet<Policy>();
         try {
             Node node = session.getNodeByUUID(rootNodeId);
             for (String name : nodeIds) {
@@ -539,6 +532,7 @@ public class PolicyManagerImpl implements PolicyManager, ApplicationContextAware
         } catch (PathNotFoundException e){
             
         }
+        return activePolicies;
     }
     
     public void setJcrTemplate(JcrTemplate jcrTemplate) {

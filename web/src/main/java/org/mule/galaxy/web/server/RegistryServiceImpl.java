@@ -1391,7 +1391,7 @@ public class RegistryServiceImpl implements RegistryService {
         try {
             if (workspaceId != null) {
                 Workspace w = registry.getWorkspace(workspaceId);
-                pols = policyManager.getActivePolicies(w, phase, false);
+                pols = policyManager.getActivePolicies(w, phase);
             } else {
                 pols = policyManager.getActivePolicies(phase);
             }

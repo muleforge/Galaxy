@@ -98,7 +98,7 @@ public class PolicyManagerTest extends AbstractGalaxyTest {
         Artifact artifact = importHelloWsdl();
         Workspace workspace = (Workspace) artifact.getParent();
         
-        Collection<Policy> active = policyManager.getActivePolicies(artifact.getDefaultOrLastVersion());
+        Collection<?> active = policyManager.getActivePolicies(artifact.getDefaultOrLastVersion());
         assertNotNull(active);
         assertEquals(1, active.size());
         
@@ -118,11 +118,11 @@ public class PolicyManagerTest extends AbstractGalaxyTest {
         assertNotNull(active);
         assertEquals(1, active.size());
         
-        active = policyManager.getActivePolicies(workspace, lifecycle, false);
+        active = policyManager.getActivePolicies(workspace, lifecycle);
         assertNotNull(active);
         assertEquals(1, active.size());
 
-        active = policyManager.getActivePolicies(workspace, lifecycle.getInitialPhase(), false);
+        active = policyManager.getActivePolicies(workspace, lifecycle.getInitialPhase());
         assertNotNull(active);
         assertEquals(0, active.size());
         
@@ -132,7 +132,7 @@ public class PolicyManagerTest extends AbstractGalaxyTest {
         assertNotNull(active);
         assertEquals(0, active.size());
         
-        active = policyManager.getActivePolicies(workspace, lifecycle, false);
+        active = policyManager.getActivePolicies(workspace, lifecycle);
         assertNotNull(active);
         assertEquals(0, active.size());
         
@@ -188,7 +188,7 @@ public class PolicyManagerTest extends AbstractGalaxyTest {
         assertNotNull(active);
         assertEquals(1, active.size());
 
-        active = policyManager.getActivePolicies(workspace, phase1, false);
+        active = policyManager.getActivePolicies(workspace, phase1);
         assertNotNull(active);
         assertEquals(1, active.size());
         
@@ -197,7 +197,7 @@ public class PolicyManagerTest extends AbstractGalaxyTest {
         assertNotNull(active);
         assertEquals(0, active.size());
         
-        active = policyManager.getActivePolicies(workspace, phase1, false);
+        active = policyManager.getActivePolicies(workspace, phase1);
         assertNotNull(active);
         assertEquals(0, active.size());
         

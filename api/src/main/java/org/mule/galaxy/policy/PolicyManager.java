@@ -15,17 +15,15 @@ public interface PolicyManager {
     
     Collection<Policy> getPolicies();
     
-    Collection<Policy> getActivePolicies(Item item);
-
-    Collection<Policy> getActivePolicies(Item item, boolean includeInherited);
+    Collection<PolicyInfo> getActivePolicies(Item item);
 
     Collection<Policy> getActivePolicies(Phase p);
 
     Collection<Policy> getActivePolicies(Lifecycle p);
 
-    Collection<Policy> getActivePolicies(Item i, Phase p, boolean includeInherited);
+    Collection<Policy> getActivePolicies(Item i, Phase p);
 
-    Collection<Policy> getActivePolicies(Item i, Lifecycle p, boolean includeInherited);
+    Collection<Policy> getActivePolicies(Item i, Lifecycle p);
     
     void setActivePolicies(Item i, Collection<Phase> phases, Policy... policies)
         throws PolicyException, RegistryException;
