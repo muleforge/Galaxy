@@ -31,6 +31,8 @@ public abstract class PropertyPanel extends AbstractComposite {
     private Hyperlink deleteHL;
     protected Galaxy galaxy;
     private ClickListener deleteListener;
+    private ClickListener saveListener;
+    private ClickListener cancelListener;
 
     public PropertyPanel() {
         super();
@@ -76,10 +78,14 @@ public abstract class PropertyPanel extends AbstractComposite {
         cancel.addClickListener(new ClickListener() {
 
             public void onClick(Widget arg0) {
-                showView(false);
+                showView();
             }
             
         });
+        
+        if (cancelListener != null) {
+            cancel.addClickListener(cancelListener);
+        }
         
         save = new Button("Save");
         save.addClickListener(new ClickListener() {
@@ -102,10 +108,6 @@ public abstract class PropertyPanel extends AbstractComposite {
     protected abstract Widget createEditForm();
     
     public void showView() {
-        showView(true);
-    }
-    
-    protected void showView(boolean initial) {
         panel.clear();
         panel.add(viewPanel);
     }
@@ -129,7 +131,7 @@ public abstract class PropertyPanel extends AbstractComposite {
     }
     
     protected void save() {
-        final Object value = getRemoteValue();
+        final Object value = getValueToSave();
         
         AbstractCallback saveCallback = new AbstractCallback(errorPanel) {
 
@@ -140,9 +142,14 @@ public abstract class PropertyPanel extends AbstractComposite {
 
             public void onSuccess(Object arg0) {
                 setEnabled(true);
+                property.setValue(value);
                 onSave(value);
                 
-                showView(false);
+                showView();
+                
+                if (saveListener != null) {
+                    saveListener.onClick(save);
+                }
             }
             
         };
@@ -162,9 +169,7 @@ public abstract class PropertyPanel extends AbstractComposite {
         }
     }
 
-    protected void onSave(final Object value) {
-        property.setValue(value);
-    }
+    protected abstract void onSave(final Object value);
     
     protected void onSaveFailure(Throwable caught, AbstractCallback saveCallback) {
         saveCallback.onFailureDirect(caught);
@@ -174,7 +179,7 @@ public abstract class PropertyPanel extends AbstractComposite {
      * The value that should be sent to the RegistryService.
      * @return
      */
-    protected abstract Object getRemoteValue();
+    protected abstract Object getValueToSave();
     
     public WProperty getProperty() {
         return property;
@@ -204,6 +209,14 @@ public abstract class PropertyPanel extends AbstractComposite {
     public void setDeleteListener(ClickListener deleteListener) {
         this.deleteListener = deleteListener;
         
+    }
+
+    public void setSaveListener(ClickListener saveListener) {
+        this.saveListener = saveListener;
+    }
+
+    public void setCancelListener(ClickListener cancelListener) {
+        this.cancelListener = cancelListener;
     }
 
 

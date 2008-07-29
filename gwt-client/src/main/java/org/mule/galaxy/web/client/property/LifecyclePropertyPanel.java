@@ -31,7 +31,7 @@ public class LifecyclePropertyPanel extends PropertyPanel {
         return lifecycleTable;
     }
 
-    protected Object getRemoteValue() {
+    protected Object getValueToSave() {
         ArrayList values = new ArrayList();
         values.add(getSelectedLifecycle().getId());
         values.add(getSelectedPhase().getId());
@@ -43,8 +43,26 @@ public class LifecyclePropertyPanel extends PropertyPanel {
         return valueLabel;
     }
 
-    public void showEdit() {
+    public void initialize() {
+        super.initialize();
+        
         valueLabel.setText("Loading...");
+        
+        final List ids = getProperty().getListValue();
+        if (ids != null) {
+            galaxy.getRegistryService().getLifecycle((String)ids.get(0), new AbstractCallback(errorPanel) {
+    
+                public void onSuccess(Object o) {
+                    lifecycle = (WLifecycle) o;
+                    phase = lifecycle.getPhaseById((String) ids.get(1));
+                    
+                    updateLabel();
+                }
+            });
+        }
+    }
+
+    public void showEdit() {
         if (lifecycles == null) {
             galaxy.getRegistryService().getLifecycles(new AbstractCallback(errorPanel) {
                 public void onSuccess(Object o) {
@@ -57,17 +75,32 @@ public class LifecyclePropertyPanel extends PropertyPanel {
         }
         super.showEdit();
     }
-
+    
     private void doShowLifecycles() {
         lifecycleTable.setText(0, 0, "Lifecycle:");
         lifecycleTable.setText(1, 0, "Phase:");
+
+        String lid = null;
+        String pid = null;
+        
+        List values = getProperty().getListValue();
+        if (values != null) {
+            lid = (String) values.get(0);
+            pid = (String) values.get(1);
+        }
         
         lifecyclesLB = new ListBox();
         for (Iterator iterator = lifecycles.iterator(); iterator.hasNext();) {
             WLifecycle l = (WLifecycle)iterator.next();
             
             lifecyclesLB.addItem(l.getName(), l.getId());
+            
+            if (l.getId().equals(lid)) {
+                lifecycle = l;
+                phase = lifecycle.getPhaseById(pid);
+            }
         }
+        
         lifecyclesLB.addChangeListener(new ChangeListener() {
 
             public void onChange(Widget arg0) {
@@ -77,9 +110,16 @@ public class LifecyclePropertyPanel extends PropertyPanel {
             }
             
         });
+        
         lifecycleTable.setWidget(0, 1, lifecyclesLB);
         
         phaseLB = new ListBox();
+        
+        // This is a new property
+        if (lifecycle == null) {
+            lifecycle = getSelectedLifecycle();
+        }
+        
         showPhasesForLifecycle(lifecycle);
         lifecycleTable.setWidget(1, 1, phaseLB);
     }
@@ -88,6 +128,10 @@ public class LifecyclePropertyPanel extends PropertyPanel {
         int idx = lifecyclesLB.getSelectedIndex();
         String id = lifecyclesLB.getValue(idx);
         
+        return getLifecycle(id);
+    }
+
+    private WLifecycle getLifecycle(String id) {
         for (Iterator itr = lifecycles.iterator(); itr.hasNext();) {
             WLifecycle l = (WLifecycle) itr.next();
             
@@ -102,7 +146,8 @@ public class LifecyclePropertyPanel extends PropertyPanel {
         for (Iterator iterator = lifecycle.getPhases().iterator(); iterator.hasNext();) {
             WPhase p = (WPhase)iterator.next();
             
-            if (p.getNextPhases().contains(phase) || phase.getNextPhases().contains(p) || p == phase) {
+            if ((phase == null && lifecycle.getInitialPhase().equals(p))
+                || p.getNextPhases().contains(phase) || (phase != null && phase.getNextPhases().contains(p)) || p == phase) {
                 phaseLB.addItem(p.getName(), p.getId());
                 
                 if (p == phase) {
@@ -126,28 +171,6 @@ public class LifecyclePropertyPanel extends PropertyPanel {
         return null;
     }
 
-    public void showView(boolean initial) {
-        super.showView(initial);
-        
-        if (initial) {
-            valueLabel.setText("Loading...");
-            final List ids = getProperty().getListValue();
-            
-            galaxy.getRegistryService().getLifecycle((String)ids.get(0), new AbstractCallback(errorPanel) {
-    
-                public void onSuccess(Object o) {
-                    lifecycle = (WLifecycle) o;
-                    phase = lifecycle.getPhaseById((String) ids.get(1));
-                    
-                    updateLabel();
-                }
-                
-            });
-        } else {
-            updateLabel();
-        }
-    }
-
     private void updateLabel() {
         valueLabel.setText(lifecycle.getName() + " - " + phase.getName());
     }
@@ -155,8 +178,7 @@ public class LifecyclePropertyPanel extends PropertyPanel {
     protected void onSave(Object value) {
         phase = getSelectedPhase();
         lifecycle = getSelectedLifecycle();
-        
-        super.onSave(value);
+        updateLabel();
     }
 
     protected void onSaveFailure(Throwable caught, AbstractCallback saveCallback) {

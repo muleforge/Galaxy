@@ -67,9 +67,10 @@ public class EntryMetadataPanel extends AbstractComposite {
         addMetadata.addClickListener(new ClickListener() {
 
             public void onClick(Widget arg0) {
-                NewPropertyPanel edit = new NewPropertyPanel(errorPanel,
+                NewPropertyPanel edit = new NewPropertyPanel(galaxy,
+                                                             errorPanel,
                                                              galaxy.getRegistryService(),
-                                                             artifactInfo.getId(),
+                                                             info.getId(),
                                                              metadata,
                                                              amPanel,
                                                              table);
@@ -120,36 +121,36 @@ public class EntryMetadataPanel extends AbstractComposite {
     }
 
     private void initializeProperties(final ArtifactVersionInfo info) {
-        int i = 0;
         for (Iterator itr = info.getProperties().iterator(); itr.hasNext();) {
             WProperty p = (WProperty) itr.next();
             
-            Label label = new Label(p.getDescription() + ":");
-            label.setTitle(p.getName());
-            table.setWidget(i, 0, label);
             
-            setRow(i, p);
-            
-            i++;
+            addRow(p);
         }
     }
     
-    private void setRow(final int row, WProperty property) {
-        if (property.isLocked()) {
-            Image img = new Image("./images/lockedstate.gif");
-            table.setWidget(row, 1, img);
-        }
-        
-        final PropertyPanel render = galaxy.getPropertyPanelFactory().createRenderer(property);
+    public void addRow(WProperty property) {
+
+        final PropertyPanel render = galaxy.getPropertyPanelFactory().createRenderer(property.getExtension(), 
+                                                                                     property.isMultiValued());
 
         render.setProperty(property);
         render.setGalaxy(galaxy);
         render.setItemId(info.getId());
+        render.initialize();
+        render.showView();
+        
+        addRow(property, render);
+    }
+
+    public void addRow(WProperty property, final PropertyPanel render) {
+        int row = table.getRowCount();
+
         render.setDeleteListener(new ClickListener() {
 
             public void onClick(Widget arg0) {
                 for (int i = 0; i < table.getRowCount(); i++) {
-                    Widget w = table.getWidget(row, 2);
+                    Widget w = table.getWidget(i, 2);
                     
                     if (w.equals(render)) {
                         table.removeRow(i);
@@ -159,8 +160,15 @@ public class EntryMetadataPanel extends AbstractComposite {
             }
             
         });
-        render.initialize();
-        render.showView();
+        
+        Label label = new Label(property.getDescription() + ":");
+        label.setTitle(property.getName());
+        table.setWidget(row, 0, label);
+        
+        if (property.isLocked()) {
+            Image img = new Image("./images/lockedstate.gif");
+            table.setWidget(row, 1, img);
+        }
         
         table.setWidget(row, 2, render);
         table.getCellFormatter().setWidth(row, 0, "130px");
@@ -168,22 +176,5 @@ public class EntryMetadataPanel extends AbstractComposite {
         table.getCellFormatter().setStyleName(row, 1, "artifactTableLock");
         table.getCellFormatter().setStyleName(row, 2, "artifactTableEntry");
     }
-
-
-    public void addProperty(String name, String desc, String value) {
-        int rows = table.getRowCount();
-
-        Label label = new Label(desc);
-        label.setTitle(name);
-        table.setWidget(rows, 0, label);
-        
-        WProperty property = new WProperty();
-        property.setName(name);
-        property.setValue(value);
-        property.setDescription(desc);
-        
-        setRow(rows, property);
-    }
-    
     
 }

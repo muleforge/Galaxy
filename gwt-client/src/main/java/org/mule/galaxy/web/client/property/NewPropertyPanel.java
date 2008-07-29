@@ -29,7 +29,6 @@ import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.ListBox;
 import com.google.gwt.user.client.ui.Panel;
 import com.google.gwt.user.client.ui.SimplePanel;
-import com.google.gwt.user.client.ui.TextBox;
 import com.google.gwt.user.client.ui.Widget;
 
 import java.util.Collections;
@@ -37,34 +36,39 @@ import java.util.Iterator;
 import java.util.List;
 
 import org.mule.galaxy.web.client.ErrorPanel;
+import org.mule.galaxy.web.client.Galaxy;
 import org.mule.galaxy.web.client.util.PropertyDescriptorComparator;
 import org.mule.galaxy.web.rpc.AbstractCallback;
 import org.mule.galaxy.web.rpc.RegistryServiceAsync;
+import org.mule.galaxy.web.rpc.WProperty;
 import org.mule.galaxy.web.rpc.WPropertyDescriptor;
 
 public class NewPropertyPanel extends Composite {
 
     private ListBox propertiesBox;
-    private TextBox valueTextBox;
     private FlowPanel propertyPanel;
-    private FlexTable newPropertyTable;
     private ErrorPanel errorPanel;
-    private String artifactId;
+    private String itemId;
     private EntryMetadataPanel metadataPanel;
     private RegistryServiceAsync svc;
-    private TextBox idTextBox;
-    private TextBox descTextBox;
     private Panel propertiesPanel;
     private ClickListener cancelListener;
+    private SimplePanel renderHolder;
+    private List propertyDescriptors;
+    private final Galaxy galaxy;
+    private WProperty property;
+    private PropertyPanel renderer;
 
-    public NewPropertyPanel(final ErrorPanel registryPanel, 
-                             final RegistryServiceAsync registryService,
-                             final String artifactId,
-                             final Panel propertiesPanel,
-                             final EntryMetadataPanel metadataPanel,
-                             final FlexTable table) {
+    public NewPropertyPanel(final Galaxy galaxy,
+                            final ErrorPanel registryPanel, 
+                            final RegistryServiceAsync registryService,
+                            final String itemId,
+                            final Panel propertiesPanel,
+                            final EntryMetadataPanel metadataPanel,
+                            final FlexTable table) {
+        this.galaxy = galaxy;
         this.errorPanel = registryPanel;
-        this.artifactId = artifactId;
+        this.itemId = itemId;
         this.propertiesPanel = propertiesPanel; 
         this.metadataPanel = metadataPanel;
         this.svc = registryService;
@@ -77,7 +81,6 @@ public class NewPropertyPanel extends Composite {
         propertiesBox = new ListBox();
         propertiesBox.setMultipleSelect(false);
         propertiesBox.addItem("", "");
-        propertiesBox.addItem("New...", "new");
         
         propertiesBox.addChangeListener(new ChangeListener() {
 
@@ -87,6 +90,9 @@ public class NewPropertyPanel extends Composite {
             
         });
         propertyPanel.add(propertiesBox);
+        
+        renderHolder = new SimplePanel();
+        propertyPanel.add(renderHolder);
         
         // Create a wrapper so the propertyPanel gets formatted correctly
         SimplePanel propPanelContainer = new SimplePanel();
@@ -101,108 +107,67 @@ public class NewPropertyPanel extends Composite {
 
         cancelListener = new ClickListener() {
             public void onClick(Widget arg0) {
-                cancel();
+                remove();
             }
         };
         Button cancelButton = new Button("Cancel");
         cancelButton.addClickListener(cancelListener);
-        panel.add(cancelButton);
+        renderHolder.add(cancelButton);
         
         initWidget(panel);
     }
     
-    private void cancel() {
-        newPropertyTable = null;
-    }
-
-    protected void saveProperty() {
-        String propertyName = null;
-        String propertyDesc = null;
-        
-        int index = propertiesBox.getSelectedIndex();
-        if (index > -1) {
-            propertyName = propertiesBox.getValue(index);
-            
-            if (propertyName.equals("new")) {
-                createPropertyAndSave();
-                return;
-            } 
-            
-            propertyDesc = propertiesBox.getItemText(index);
-        } else {
-            errorPanel.setMessage("No property was selected!");
-            return;
-        }
-        
-        saveProperty(propertyName, propertyDesc);
-    }
-
-    private void saveProperty(final String propertyName, final String propertyDesc) {
-        final String propertyValue = valueTextBox.getText();
-        
-        svc.setProperty(artifactId, propertyName, propertyValue, new AbstractCallback(errorPanel) {
-
-            public void onSuccess(Object o) {
-                clearPanelAndAddProperty(propertyName, propertyDesc, propertyValue);
-            }
-            
-        });
-    }
-
-    protected void clearPanelAndAddProperty(String propertyName, String propertyDesc, String propertyValue) {
-        propertiesPanel.remove(this);
-        
-        metadataPanel.addProperty(propertyName, propertyDesc, valueTextBox.getText());
-    }
-
-    private void createPropertyAndSave() {
-        final String id = idTextBox.getText();
-        if (id == null || "".equals(id)) {
-            errorPanel.setMessage("A property id must be supplied;");
-            return;
-        }
-        final String desc = descTextBox.getText();
-        if (desc == null || "".equals(desc)) {
-            errorPanel.setMessage("A property description must be supplied;");
-            return;
-        }
-        
-        svc.newPropertyDescriptor(id, desc, false, new AbstractCallback(errorPanel) {
-
-            public void onSuccess(Object arg0) {
-                saveProperty(id, desc);
-            }
-            
-        });
-    }
 
     protected void onPropertySelect(ListBox w) {
         int i = w.getSelectedIndex();
         String txt = w.getValue(i);
-        if ("new".equals(txt)) {
-            
-            newPropertyTable = new FlexTable();
-            newPropertyTable.setWidget(0, 0, new Label("Id:"));
-            
-            idTextBox = new TextBox();
-            idTextBox.setVisibleLength(20);
-            newPropertyTable.setWidget(0, 1, idTextBox);
-            
-            newPropertyTable.setText(1, 0, "Description:");
-            
-            descTextBox = new TextBox();
-            descTextBox.setVisibleLength(20);
-            newPropertyTable.setWidget(1, 1, descTextBox);
-            
-            propertyPanel.add(newPropertyTable);
-        } else {
-            for (int c = 1; c < propertyPanel.getWidgetCount(); c++) {
-                propertyPanel.remove(1);
+        
+        WPropertyDescriptor pd = getPropertyDescriptor(txt);
+        
+        renderer = galaxy.getPropertyPanelFactory().createRenderer(pd.getExtension(), pd.isMultiValued());
+        
+        property = new WProperty(pd.getName(), pd.getDescription(), null, pd.getExtension(), false);
+        renderer.setProperty(property);
+        renderer.setGalaxy(galaxy);
+        renderer.setItemId(itemId);
+        renderer.setErrorPanel(errorPanel);
+        renderer.setSaveListener(new ClickListener() {
+            public void onClick(Widget arg0) {
+                save();
+            }
+        });
+        renderer.setCancelListener(cancelListener);
+        renderer.initialize();
+        renderer.showEdit();
+
+        renderHolder.clear();
+        renderHolder.add(renderer);
+    }
+
+    protected void save() {
+        remove();
+        
+        metadataPanel.addRow(property);
+    }
+    
+    private void remove() {
+        propertiesPanel.remove(this);
+    }
+
+
+    private WPropertyDescriptor getPropertyDescriptor(String txt) {
+        for (Iterator itr = propertyDescriptors.iterator(); itr.hasNext();) {
+            WPropertyDescriptor pd = (WPropertyDescriptor) itr.next();
+           
+            if (txt.equals(pd.getName())) {
+                return pd;
             }
         }
+        return null;
     }
 
     protected void initProperties(List o) {
+        this.propertyDescriptors = o;
         Collections.sort(o, new PropertyDescriptorComparator());
         
         for (Iterator itr = o.iterator(); itr.hasNext();) {

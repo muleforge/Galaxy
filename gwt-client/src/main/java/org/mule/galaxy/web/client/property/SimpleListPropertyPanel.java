@@ -1,6 +1,7 @@
 package org.mule.galaxy.web.client.property;
 
 import com.google.gwt.user.client.ui.Label;
+import com.google.gwt.user.client.ui.SimplePanel;
 import com.google.gwt.user.client.ui.TextBox;
 import com.google.gwt.user.client.ui.Widget;
 
@@ -12,15 +13,15 @@ public class SimpleListPropertyPanel extends PropertyPanel {
 
     private TextBox valueTB;
     private Label valueLabel;
+    private SimplePanel listBoxPanel;
     private StringListBox listBox;
 
     protected Widget createEditForm() {
-        listBox = new StringListBox((Collection) getProperty().getListValue());
-        
-        return listBox;
+        listBoxPanel = new SimplePanel();
+        return listBoxPanel;
     }
 
-    protected Object getRemoteValue() {
+    protected Object getValueToSave() {
         return valueTB.getText();
     }
 
@@ -38,18 +39,23 @@ public class SimpleListPropertyPanel extends PropertyPanel {
         return txt;
     }
     
+    protected void onSave(Object value) {
+        valueLabel.setText(getRenderedText());
+        listBox = new StringListBox((Collection) getProperty().getListValue());
+        listBoxPanel.clear();
+        listBoxPanel.add(listBox);
+    }
+
     protected Widget createViewWidget() {
         valueLabel = new Label();
         return valueLabel;
     }
 
-    public void showEdit() {
-        super.showEdit();
+    public void initialize() {
+        super.initialize();
+        valueLabel.setText(getRenderedText());
+        listBox = new StringListBox((Collection) getProperty().getListValue());
+        listBoxPanel.add(listBox);
     }
 
-    public void showView() {
-        valueLabel.setText(getRenderedText());
-        
-        super.showView();
-    }
 }

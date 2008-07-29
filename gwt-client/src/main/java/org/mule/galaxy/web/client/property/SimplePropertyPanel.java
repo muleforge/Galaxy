@@ -15,7 +15,7 @@ public class SimplePropertyPanel extends PropertyPanel {
         return valueTB;
     }
 
-    protected Object getRemoteValue() {
+    protected Object getValueToSave() {
         return valueTB.getText();
     }
 
@@ -33,16 +33,17 @@ public class SimplePropertyPanel extends PropertyPanel {
         valueLabel = new Label();
         return valueLabel;
     }
+    
 
-    public void showEdit() {
-        valueTB.setText(getRenderedText());
-        
-        super.showEdit();
-    }
-
-    public void showView() {
+    public void initialize() {
+        super.initialize();
         valueLabel.setText(getRenderedText());
-        
-        super.showView();
+        valueTB.setText((String) getProperty().getValue());
     }
+
+    protected void onSave(Object value) {
+        valueLabel.setText(getRenderedText());
+        valueTB.setText((String) value);
+    }
+    
 }
