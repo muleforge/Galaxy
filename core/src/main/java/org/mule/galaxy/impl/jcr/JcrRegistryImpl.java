@@ -548,7 +548,8 @@ public class JcrRegistryImpl extends JcrTemplate implements Registry, JcrRegistr
             public Object doInJcr(Session session) throws IOException, RepositoryException {
                 QueryManager qm = getQueryManager(session);
                 StringBuilder sb = new StringBuilder();
-                sb.append("//element(*, galaxy:artifact)[@name='")
+                sb.append("//*[@jcr:uuid='").append(w.getId()).append("']/")
+                  .append("element(*, galaxy:artifact)[@name='")
                   .append(name)
                   .append("']");
                 
